@@ -178,6 +178,16 @@ TEST(Patterns, Optional) {
   EXPECT_EQ(2, test_optional(oo3));
 }
 
+TEST(Patterns, Varargs) {
+  std::tuple<int, std::string> x = {42, "hello"};
+
+  using namespace mpark;
+  match(x)(pattern(prod(*arg)) = [](const auto &lhs, const auto &rhs) {
+    EXPECT_EQ(42, lhs);
+    EXPECT_EQ("hello", rhs);
+  });
+}
+
 struct Expr;
 struct Value;
 struct Null {};

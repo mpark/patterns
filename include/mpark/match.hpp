@@ -91,10 +91,16 @@ namespace mpark {
     return Match<R, Value>{std::forward<Value>(value)};
   }
 
+  template <typename T>
+  struct is_pattern : std::false_type {};
+
   // wildcard pattern.
 
   struct Wildcard {};
   constexpr Wildcard _{};
+
+  template <>
+  struct is_pattern<Wildcard> : std::true_type {};
 
   template <typename Value>
   bool matches(Wildcard, const Value &value) noexcept { return true; }
@@ -116,6 +122,9 @@ namespace mpark {
 
   constexpr Arg<Wildcard> arg{_};
 
+  template <typename Pattern>
+  struct is_pattern<Arg<Pattern>> : std::true_type {};
+
   template <typename Pattern, typename Value>
   bool matches(const Arg<Pattern> &arg, const Value &value) noexcept {
     return matches(arg.pattern, value);
@@ -127,12 +136,35 @@ namespace mpark {
                           bindings(arg.pattern, std::forward<Value>(value)));
   }
 
+  // variadic pattern.
+
+  template <typename Pattern>
+  struct Variadic { const Pattern &pattern; };
+
+  template <typename Pattern,
+            std::enable_if_t<is_pattern<Pattern>::value, int> = 0>
+  auto operator*(const Pattern &pattern) {
+    return Variadic<Pattern>{pattern};
+  }
+
+  template <typename Pattern>
+  struct is_pattern<Variadic<Pattern>> : std::true_type {};
+
+  template <typename Pattern>
+  struct is_variadic : std::false_type {};
+
+  template <typename Pattern>
+  struct is_variadic<Variadic<Pattern>> : std::true_type {};
+
   // product pattern.
 
   template <typename... Patterns>
   struct Prod : std::tuple<const Patterns &...> {
     using std::tuple<const Patterns &...>::tuple;
   };
+
+  template <typename... Patterns>
+  struct is_pattern<Prod<Patterns...>> : std::true_type {};
 
   template <typename... Patterns>
   auto prod(const Patterns &... patterns) {
@@ -160,7 +192,7 @@ namespace mpark {
       }
 
       template <typename... Patterns, typename Value>
-      bool matches_impl(const std::tuple<const Patterns &...> &prod,
+      bool matches_impl(const std::tuple<const Patterns &...> &p,
                         const Value &,
                         std::index_sequence<>) noexcept {
         return true;
@@ -170,19 +202,64 @@ namespace mpark {
                 typename Value,
                 std::size_t I,
                 std::size_t... Is>
-      bool matches_impl(const std::tuple<const Patterns &...> &prod,
+      bool matches_impl(const std::tuple<const Patterns &...> &p,
                         const Value &value,
                         std::index_sequence<I, Is...>) noexcept {
-        return matches(std::get<I>(prod), generic_get<I>(value)) &&
-               matches_impl(prod, value, std::index_sequence<Is...>{});
+        static constexpr auto size = sizeof...(Patterns);
+        static_assert(size == std::tuple_size<Value>::value, "");
+        return matches(std::get<I>(p), generic_get<I>(value)) &&
+               matches_impl(p, value, std::index_sequence<Is...>{});
+      }
+
+      template <std::size_t N, typename... Patterns>
+      constexpr bool matches_check() {
+        constexpr std::size_t size = sizeof...(Patterns);
+        if (size > N + 1) {
+          return false;
+        }
+        constexpr bool bs[] = {is_variadic<Patterns>::value...};
+        for (int i = 0; i < size; ++i) {
+          if (bs[i]) {
+            return i == size - 1;
+          }
+        }
+        return size == N;
+      }
+
+      template <typename Pattern>
+      static const auto &get_pattern(
+          const Variadic<Pattern> &variadic) noexcept {
+        return variadic.pattern;
+      }
+
+      template <typename Pattern>
+      static const auto &get_pattern(const Pattern &pattern) noexcept {
+        return pattern;
+      }
+
+      template <typename... Patterns, std::size_t... Is>
+      static auto canonicalize(const std::tuple<const Patterns &...> &t,
+                               std::index_sequence<Is...>) noexcept {
+        constexpr std::size_t size = sizeof...(Patterns);
+        return prod(get_pattern(std::get<(Is < size ? Is : size - 1)>(t))...);
       }
 
       template <typename... Patterns, typename Value, std::size_t... Is>
-      auto bindings_impl(const std::tuple<const Patterns &...> &prod,
+      auto bindings_impl(const std::tuple<const Patterns &...> &t,
                          Value &&value,
                          std::index_sequence<Is...>) noexcept {
+        static constexpr auto size = sizeof...(Patterns);
+        static_assert(size == std::tuple_size<std::decay_t<Value>>::value, "");
         return std::tuple_cat(bindings(
-            std::get<Is>(prod), generic_get<Is>(std::forward<Value>(value)))...);
+            std::get<Is>(t), generic_get<Is>(std::forward<Value>(value)))...);
+      }
+
+      template <typename Pattern, typename Value, std::size_t... Is>
+      auto bindings_impl(const std::tuple<const Variadic<Pattern> &> &t,
+                         Value &&value,
+                         std::index_sequence<Is...> indices) noexcept {
+        return bindings_impl(
+            prod((Is, std::get<0>(t))...), std::forward<Value>(value), indices);
       }
 
     }  // namespace detail
@@ -190,17 +267,22 @@ namespace mpark {
 
   template <typename... Patterns, typename Value>
   bool matches(const Prod<Patterns...> &prod, const Value &value) noexcept {
-    static constexpr auto size = sizeof...(Patterns);
-    static_assert(size == std::tuple_size<Value>::value, "");
-    return patterns::detail::matches_impl(prod, value, std::make_index_sequence<size>{});
+    using namespace patterns::detail;
+    static constexpr std::size_t size = std::tuple_size<Value>::value;
+    static_assert(matches_check<size, Patterns...>(), "");
+    using Indices = std::make_index_sequence<size>;
+    return matches_impl(canonicalize(prod, Indices{}), value, Indices{});
   }
 
   template <typename... Patterns, typename Value>
   auto bindings(const Prod<Patterns...> &prod, Value &&value) noexcept {
-    static constexpr auto size = sizeof...(Patterns);
-    static_assert(size == std::tuple_size<std::decay_t<Value>>::value, "");
-    return patterns::detail::bindings_impl(
-        prod, std::forward<Value>(value), std::make_index_sequence<size>{});
+    using namespace patterns::detail;
+    static constexpr std::size_t size =
+        std::tuple_size<std::decay_t<Value>>::value;
+    static_assert(matches_check<size, Patterns...>(), "");
+    using Indices = std::make_index_sequence<size>;
+    return bindings_impl(
+        canonicalize(prod, Indices{}), std::forward<Value>(value), Indices{});
   }
 
   // sum pattern.
@@ -208,6 +290,9 @@ namespace mpark {
   struct Sum {
     const Pattern &pattern;
   };
+
+  template <typename T, typename Pattern>
+  struct is_pattern<Sum<T, Pattern>> : std::true_type {};
 
   template <typename T, typename Pattern>
   auto sum(const Pattern &pattern) {
@@ -272,6 +357,9 @@ namespace mpark {
   struct None {};
   constexpr None none;
 
+  template <>
+  struct is_pattern<None> : std::true_type {};
+
   template <typename Value>
   bool matches(None, const Value &value) noexcept { return !value; }
 
@@ -283,6 +371,9 @@ namespace mpark {
 
   template <typename Pattern>
   auto some(const Pattern &pattern) { return Some<Pattern>{pattern}; }
+
+  template <typename Pattern>
+  struct is_pattern<Some<Pattern>> : std::true_type {};
 
   template <typename Pattern, typename Value>
   bool matches(const Some<Pattern> &some, const Value &value) noexcept {
@@ -304,16 +395,5 @@ namespace mpark {
   }
 
 }  // namespace mpark
-
-// ```cpp
-// match(<expr>)(
-//   pattern(<pattern>)[.when(<bool-expr>)] = <handler>,
-//   pattern(<pattern>)[.when(<bool-expr>)] = <handler>,
-//   ...);
-// ```
-//
-// ## Patterns
-//   - sum types: `sum(Circle)
-//   - type-casting: `is<T>`, as<T>(<pattern>)
 
 #endif  // MPARK_MATCH_HPP
