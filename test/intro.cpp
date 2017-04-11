@@ -19,11 +19,11 @@
 void fizzbuzz() {
   using namespace mpark;
   for (int i = 1; i <= 100; ++i) {
-    match(std::make_pair(i % 3, i % 5))(
-        pattern(prod(0, 0)) = [] { std::cout << "fizzbuzz\n"; },
-        pattern(prod(0, _)) = [] { std::cout << "fizz\n"; },
-        pattern(prod(_, 0)) = [] { std::cout << "buzz\n"; },
-        pattern(prod(_, _)) = [i] { std::cout << i << '\n'; });
+    match(i % 3, i % 5)(
+        pattern(0, 0) = [] { std::cout << "fizzbuzz\n"; },
+        pattern(0, _) = [] { std::cout << "fizz\n"; },
+        pattern(_, 0) = [] { std::cout << "buzz\n"; },
+        pattern(_, _) = [i] { std::cout << i << '\n'; });
   }
 }
 
@@ -126,20 +126,20 @@ TEST(Patterns, MultiSum) {
   for (const auto &v : vs) {
     for (const auto &w : ws) {
       using namespace mpark;
-      match(std::tie(v, w))(
-          pattern(prod(sum<int>(arg), sum<int>(arg))) = [](auto x, auto y) {
+      match(v, w)(
+          pattern(sum<int>(arg), sum<int>(arg)) = [](auto x, auto y) {
             EXPECT_EQ(101, x);
             EXPECT_EQ(202, y);
           },
-          pattern(prod(sum<int>(arg), sum<str>(arg))) = [](auto x, const auto &y) {
+          pattern(sum<int>(arg), sum<str>(arg)) = [](auto x, const auto &y) {
             EXPECT_EQ(101, x);
             EXPECT_EQ("world", y);
           },
-          pattern(prod(sum<str>(arg), sum<int>(arg))) = [](const auto &x, auto y) {
+          pattern(sum<str>(arg), sum<int>(arg)) = [](const auto &x, auto y) {
             EXPECT_EQ("hello", x);
             EXPECT_EQ(202, y);
           },
-          pattern(prod(sum<str>(arg), sum<str>(arg))) = [](const auto &x, const auto &y) {
+          pattern(sum<str>(arg), sum<str>(arg)) = [](const auto &x, const auto &y) {
             EXPECT_EQ("hello", x);
             EXPECT_EQ("world", y);
           });
@@ -205,9 +205,9 @@ struct Value : mpark::variant<int, str, Lambda, Null> {
 
 Value add(const Value &lhs, const Value &rhs) {
   using namespace mpark;
-  return match<Value>(std::tie(lhs, rhs))(
-      pattern(prod(sum<int>(arg), sum<int>(arg))) = std::plus<>{},
-      pattern(prod(sum<str>(arg), sum<str>(arg))) = std::plus<>{});
+  return match<Value>(lhs, rhs)(
+      pattern(sum<int>(arg), sum<int>(arg)) = std::plus<>{},
+      pattern(sum<str>(arg), sum<str>(arg)) = std::plus<>{});
 }
 
 TEST(Patterns, Calc) {

@@ -35,62 +35,6 @@ namespace mpark {
     return std::tuple<>{};
   }
 
-  // `match` DSL.
-
-  template <typename Pattern, typename Handler>
-  struct Case {
-    Handler &&handler() const && { return std::forward<Handler>(handler_); }
-
-    const Pattern &pattern;
-    Handler &&handler_;
-  };
-
-  template <typename Pattern>
-  struct PatternDecl {
-    template <typename Handler>
-    auto operator=(Handler &&handler) && noexcept {
-      return Case<Pattern, Handler>{pattern_, std::forward<Handler>(handler)};
-    }
-
-    const Pattern &pattern_;
-  };
-
-  template <typename Pattern>
-  auto pattern(const Pattern &pattern) noexcept {
-    return PatternDecl<Pattern>{pattern};
-  }
-
-  template <typename R, typename Value>
-  struct Match {
-    template <typename Pattern, typename Handler>
-    decltype(auto) operator()(Case<Pattern, Handler> &&case_) && {
-      const auto &pattern = std::move(case_).pattern;
-      return matches(pattern, std::forward<Value>(value_))
-                 ? patterns::lib::apply_r<R>(
-                       std::move(case_).handler(),
-                       bindings(pattern, std::forward<Value>(value_)))
-                 : throw match_error("");
-    }
-
-    template <typename Pattern, typename Handler, typename... Cases>
-    decltype(auto) operator()(Case<Pattern, Handler> &&case_,
-                              Cases &&... cases) && {
-      const auto &pattern = std::move(case_).pattern;
-      return matches(pattern, std::forward<Value>(value_))
-                 ? patterns::lib::apply_r<R>(
-                       std::move(case_).handler(),
-                       bindings(pattern, std::forward<Value>(value_)))
-                 : std::move(*this)(std::forward<Cases>(cases)...);
-    }
-
-    Value &&value_;
-  };
-
-  template <typename R = patterns::lib::Deduce, typename Value>
-  auto match(Value &&value) noexcept {
-    return Match<R, Value>{std::forward<Value>(value)};
-  }
-
   template <typename T>
   struct is_pattern : std::false_type {};
 
@@ -111,13 +55,16 @@ namespace mpark {
   // bind pattern.
 
   template <typename Pattern>
-  struct Arg {
+  struct Arg { const Pattern &pattern; };
+
+  template <>
+  struct Arg<Wildcard> {
     template <typename Pattern_>
     auto operator()(const Pattern_ &pattern_) const {
       return Arg<Pattern_>{pattern_};
     }
 
-    const Pattern &pattern;
+    const Wildcard &pattern;
   };
 
   constexpr Arg<Wildcard> arg{_};
@@ -384,6 +331,64 @@ namespace mpark {
   auto bindings(const Some<Pattern> &some, Value &&value) noexcept {
     assert(value);
     return bindings(some.pattern, *std::forward<Value>(value));
+  }
+
+  // `match` DSL.
+
+  template <typename Patterns, typename Handler>
+  struct Case {
+    Handler &&handler() && { return std::forward<Handler>(handler_); }
+
+    Patterns patterns;
+    Handler &&handler_;
+  };
+
+  template <typename... Patterns>
+  struct PatternDecl {
+    template <typename Handler>
+    auto operator=(Handler &&handler) && noexcept {
+      return Case<Prod<Patterns...>, Handler>{std::move(patterns),
+                                              std::forward<Handler>(handler)};
+    }
+
+    Prod<Patterns...> patterns;
+  };
+
+  template <typename... Patterns>
+  auto pattern(const Patterns &... patterns) noexcept {
+    return PatternDecl<Patterns...>{prod(patterns...)};
+  }
+
+  template <typename R, typename... Values>
+  struct Match {
+    template <typename Patterns, typename Handler>
+    decltype(auto) operator()(Case<Patterns, Handler> &&case_) && {
+      const auto &patterns = std::move(case_).patterns;
+      return matches(patterns, std::move(values))
+                 ? patterns::lib::apply_r<R>(
+                       std::move(case_).handler(),
+                       bindings(patterns, std::move(values)))
+                 : throw match_error("");
+    }
+
+    template <typename Patterns, typename Handler, typename... Cases>
+    decltype(auto) operator()(Case<Patterns, Handler> &&case_,
+                              Cases &&... cases) && {
+      const auto &patterns = std::move(case_).patterns;
+      return matches(patterns, std::move(values))
+                 ? patterns::lib::apply_r<R>(
+                       std::move(case_).handler(),
+                       bindings(patterns, std::move(values)))
+                 : std::move(*this)(std::forward<Cases>(cases)...);
+    }
+
+    std::tuple<Values &&...> values;
+  };
+
+  template <typename R = patterns::lib::Deduce, typename... Values>
+  auto match(Values &&... values) noexcept {
+    return Match<R, Values...>{
+        std::forward_as_tuple(std::forward<Values>(values)...)};
   }
 
   // `as_tuple` utility.
