@@ -29,5 +29,6 @@ if(MPARK_PATTERNS_INCLUDE_TESTS)
   endfunction(add_gtest)
 
   add_gtest(intro)
+  add_gtest(calc)
 
 endif()

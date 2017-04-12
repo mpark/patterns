@@ -391,14 +391,6 @@ namespace mpark {
         std::forward_as_tuple(std::forward<Values>(values)...)};
   }
 
-  // `as_tuple` utility.
-
-  template <typename T, typename... Fs>
-  auto as_tuple(T &&t, Fs &&... fs) {
-    return std::forward_as_tuple(
-        patterns::lib::invoke(std::forward<Fs>(fs), std::forward<T>(t))...);
-  }
-
 }  // namespace mpark
 
 #endif  // MPARK_MATCH_HPP

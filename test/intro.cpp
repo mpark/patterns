@@ -51,23 +51,24 @@ namespace N {
     int x;
     std::string y;
 
-    template <typename S_>
-    static auto as_tuple(S_ &&s) {
-      return mpark::as_tuple(std::forward<S_>(s), &S::x, &S::y);
+    template <typename Self>
+    static auto to_tuple(Self &&self) {
+      return std::forward_as_tuple(std::forward<Self>(self).x,
+                                   std::forward<Self>(self).y);
     }
   };
 
   template <std::size_t I>
-  auto &&get(S &s) { return std::get<I>(S::as_tuple(s)); }
+  auto &&get(S &s) { return std::get<I>(S::to_tuple(s)); }
 
   template <std::size_t I>
-  auto &&get(const S &s) { return std::get<I>(S::as_tuple(s)); }
+  auto &&get(const S &s) { return std::get<I>(S::to_tuple(s)); }
 
   template <std::size_t I>
-  auto &&get(S &&s) { return std::get<I>(S::as_tuple(std::move(s))); }
+  auto &&get(S &&s) { return std::get<I>(S::to_tuple(std::move(s))); }
 
   template <std::size_t I>
-  auto &&get(const S &&s) { return std::get<I>(S::as_tuple(std::move(s))); }
+  auto &&get(const S &&s) { return std::get<I>(S::to_tuple(std::move(s))); }
 
 }  // namespace S
 
@@ -75,7 +76,7 @@ namespace std {
 
   template <>
   struct tuple_size<N::S>
-      : tuple_size<decltype(N::S::as_tuple(std::declval<N::S>()))> {};
+      : tuple_size<decltype(N::S::to_tuple(std::declval<N::S>()))> {};
 
 }  // namespace std
 
@@ -186,32 +187,4 @@ TEST(Patterns, Varargs) {
     EXPECT_EQ(42, lhs);
     EXPECT_EQ("hello", rhs);
   });
-}
-
-struct Expr;
-struct Value;
-struct Null {};
-
-struct Lambda {
-  std::vector<std::string> params;
-  // std::unique_ptr<Expr> expr;
-};
-
-using str = std::string;
-
-struct Value : mpark::variant<int, str, Lambda, Null> {
-  using mpark::variant<int, str, Lambda, Null>::variant;
-};
-
-Value add(const Value &lhs, const Value &rhs) {
-  using namespace mpark;
-  return match<Value>(lhs, rhs)(
-      pattern(sum<int>(arg), sum<int>(arg)) = std::plus<>{},
-      pattern(sum<str>(arg), sum<str>(arg)) = std::plus<>{});
-}
-
-TEST(Patterns, Calc) {
-  Value x(101), y(202);
-  Value result = add(x, y);
-  EXPECT_EQ(303, mpark::get<int>(result));
 }
