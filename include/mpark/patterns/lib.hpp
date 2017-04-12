@@ -137,4 +137,4 @@ namespace mpark {
   }  // namespace patterns
 }  // namespace mpark
 
-#endif  // MPARK_LIB_HPP
+#endif  // MPARK_PATTERNS_LIB_HPP
