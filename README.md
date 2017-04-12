@@ -4,6 +4,15 @@
 
 ## Introduction
 
+__MPark.Patterns__ is an experimental pattern matching library for __C++14__.
+
+It determines whether a given value __matches__ a __pattern__ and, if it does,
+__passes__ the desired portions of the value to a __handler__.
+
+Pattern matching has been introduced to many programming languages outside of
+the functional world, and this library draws inspiration from languages such as
+Haskell, OCaml, Rust, Scala, and Swift.
+
 ## Basic Syntax
 
 ```cpp
@@ -239,6 +248,11 @@ match(x, y)(
     });
 // prints: "42 101 hello 1.1 "
 ```
+
+## Related Work
+
+  - [solodon4/Mach7](https://github.com/solodon4/Mach7)
+  - [jbandela/simple_match](https://github.com/jbandela/simple_match/)
 
 [apply]: http://en.cppreference.com/w/cpp/utility/apply
 [structured-bindings]: http://en.cppreference.com/w/cpp/language/declarations#Structured_binding_declaration
