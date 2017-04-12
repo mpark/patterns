@@ -13,6 +13,35 @@ Pattern matching has been introduced to many programming languages outside of
 the functional world, and this library draws inspiration from languages such as
 Haskell, OCaml, Rust, Scala, and Swift.
 
+```cpp
+#include <functional>
+#include <iostream>
+#include <sstream>
+
+#include <mpark/match.hpp>
+
+int eval(const std::string& equation) {
+  std::istringstream strm(equation);
+  strm.exceptions(std::istringstream::failbit);
+
+  int lhs, rhs;
+  std::string op;
+  strm >> lhs >> op >> rhs;
+
+  using namespace mpark;
+  return match(lhs, op, rhs)(
+      pattern(arg, "plus", arg) = std::plus<>{},
+      pattern(arg, "minus", arg) = std::minus<>{},
+      pattern(arg, "mult", arg) = std::multiplies<>{},
+      pattern(arg, "div", arg) = std::divides<>{});
+}
+
+int main() {
+  std::cout << eval("101 plus 202") << '\n';  // prints "303".
+  std::cout << eval("64 div 2") << '\n';  // prints "32".
+}
+```
+
 ## Basic Syntax
 
 ```cpp
@@ -105,19 +134,6 @@ match(t)(
     pattern(prod(arg, arg, arg)) = [](const auto& x, const auto& y, const auto& z) {
       // ...
     });
-```
-
-```cpp
-void fizzbuzz() {
-  using namespace mpark;
-  for (int i = 1; i <= 100; ++i) {
-    match(std::make_pair(i % 3, i % 5))(
-        pattern(prod(0, 0)) = [] { std::cout << "fizzbuzz\n"; },
-        pattern(prod(0, _)) = [] { std::cout << "fizz\n"; },
-        pattern(prod(_, 0)) = [] { std::cout << "buzz\n"; },
-        pattern(prod(_, _)) = [i] { std::cout << i << std::endl; });
-  }
-}
 ```
 
 __NOTE__: The top-level is wrapped by a `tuple`, allowing us to write:
