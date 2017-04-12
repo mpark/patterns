@@ -31,7 +31,7 @@ namespace mpark {
   }
 
   template <typename ExprPattern, typename Value>
-  auto bindings(const ExprPattern &expr_pattern, Value &&) noexcept {
+  auto bindings(const ExprPattern &, Value &&) noexcept {
     return std::tuple<>{};
   }
 
@@ -47,7 +47,7 @@ namespace mpark {
   struct is_pattern<Wildcard> : std::true_type {};
 
   template <typename Value>
-  bool matches(Wildcard, const Value &value) noexcept { return true; }
+  bool matches(Wildcard, const Value &) noexcept { return true; }
 
   template <typename Value>
   auto bindings(Wildcard, Value &&) noexcept { return std::tuple<>{}; }
@@ -139,7 +139,7 @@ namespace mpark {
       }
 
       template <typename... Patterns, typename Value>
-      bool matches_impl(const std::tuple<const Patterns &...> &p,
+      bool matches_impl(const std::tuple<const Patterns &...> &,
                         const Value &,
                         std::index_sequence<>) noexcept {
         return true;
@@ -165,7 +165,7 @@ namespace mpark {
           return false;
         }
         constexpr bool bs[] = {is_variadic<Patterns>::value...};
-        for (int i = 0; i < size; ++i) {
+        for (std::size_t i = 0; i < size; ++i) {
           if (bs[i]) {
             return i == size - 1;
           }
