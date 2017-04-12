@@ -1,6 +1,6 @@
 # MPark.Patterns
 
-> Pattern matching in __C++14__.
+> Pattern Matching in __C++14__.
 
 ## Introduction
 
@@ -8,10 +8,10 @@
 
 ```cpp
 using namespace mpark;
-match(<expr>)(
-  pattern(<pattern_0>) = <handler_0>,
-  pattern(<pattern_1>) = <handler_1>,
-  /* ... */
+match(<expr>...)(
+  pattern(<pattern>...) = <handler>,
+  pattern(<pattern>...) = <handler>,
+  // ...
 );
 ```
 
@@ -29,7 +29,7 @@ None.
 
   - `_` (underscore)
 
-#### Example
+#### Examples
 
 ```cpp
 int factorial(int n) {
@@ -52,7 +52,7 @@ None.
   - `arg(<pattern>)`
   - `arg` -- alias for `arg(_)`
 
-#### Example
+#### Examples
 
 ```cpp
 int factorial(int n) {
@@ -81,7 +81,22 @@ __NOTE__: These requirements are very similar to the requirements for
 
   - `prod(<pattern>...)`
 
-#### Example
+#### Examples
+
+```cpp
+auto t = std::make_tuple(101, "hello", 1.1);
+
+// C++17 Structured Bindings:
+const auto& [x, y, z] = t;
+// ...
+
+// C++14 MPark.Patterns:
+using namespace mpark;
+match(t)(
+    pattern(prod(arg, arg, arg)) = [](const auto& x, const auto& y, const auto& z) {
+      // ...
+    });
+```
 
 ```cpp
 void fizzbuzz() {
@@ -92,6 +107,21 @@ void fizzbuzz() {
         pattern(prod(0, _)) = [] { std::cout << "fizz\n"; },
         pattern(prod(_, 0)) = [] { std::cout << "buzz\n"; },
         pattern(prod(_, _)) = [i] { std::cout << i << std::endl; });
+  }
+}
+```
+
+__NOTE__: The top-level is wrapped by a `tuple`, allowing us to write:
+
+```cpp
+void fizzbuzz() {
+  using namespace mpark;
+  for (int i = 1; i <= 100; ++i) {
+    match(i % 3, i % 5)(
+        pattern(0, 0) = [] { std::cout << "fizzbuzz\n"; },
+        pattern(0, _) = [] { std::cout << "fizz\n"; },
+        pattern(_, 0) = [] { std::cout << "buzz\n"; },
+        pattern(_, _) = [i] { std::cout << i << std::endl; });
   }
 }
 ```
@@ -111,7 +141,7 @@ The type `T` satisfies `Sum` if given a variable `x` of type `T`,
 
   - `sum<T>(<pattern>)`
 
-#### Example
+#### Examples
 
 ```cpp
 using str = std::string;
@@ -138,7 +168,7 @@ The type `T` satisfies `Optional` if given a variable `x` of type `T`,
   - `some(<pattern>)`
   - `none`
 
-#### Example
+#### Examples
 
 ```cpp
 int *p = nullptr;
@@ -159,4 +189,55 @@ match(o)(
 // prints "some(42)".
 ```
 
+### Variadic Pattern
+
+A _variadic pattern_ matches 0 or more values that match a pattern.
+
+#### Requirements
+
+None.
+
+#### Syntax
+
+  - `*<pattern>`
+
+#### Examples
+
+```cpp
+auto x = std::make_tuple(101, "hello", 1.1);
+
+using namespace mpark;
+match(x)(
+    pattern(prod(*arg)) = [](const auto&... xs) {
+      int dummy[] = { (std::cout << xs << ' ', 0)... };
+      (void)dummy;
+    });
+// prints: "101 hello 1.1 "
+```
+
+This could also be used to implement [C++17 `std::apply`][apply]:
+
+```cpp
+template <class F, class Tuple>
+constexpr decltype(auto) apply(F&& f, Tuple&& t) {
+  return match(std::forward<T>(t))(pattern(prod(*arg)) = std::forward<F>(f));
+}
+```
+
+We can even get a little fancier:
+
+```cpp
+int x = 42;
+auto y = std::make_tuple(101, "hello", 1.1);
+
+using namespace mpark;
+match(x, y)(
+    pattern(arg, prod(*arg)) = [](const auto&... xs) {
+      int dummy[] = { (std::cout << xs << ' ', 0)... };
+      (void)dummy;
+    });
+// prints: "42 101 hello 1.1 "
+```
+
+[apply]: http://en.cppreference.com/w/cpp/utility/apply
 [structured-bindings]: http://en.cppreference.com/w/cpp/language/declarations#Structured_binding_declaration
