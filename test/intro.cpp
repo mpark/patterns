@@ -33,16 +33,28 @@ int factorial(int n) {
                   pattern(arg) = [](int n) { return n * factorial(n - 1); });
 }
 
-int fib(int n) {
+int fib_v0(int n) {
   using namespace mpark;
-  return match(n)(pattern(0) = [] { return 0; },
-                  pattern(1) = [] { return 1; },
-                  pattern(arg) = [](int n) { return fib(n - 1) + fib(n - 2); });
+  assert(n >= 0);
+  return match(n)(
+      pattern(0) = [] { return 0; },
+      pattern(1) = [] { return 1; },
+      pattern(arg) = [](int n) { return fib_v0(n - 1) + fib_v0(n - 2); });
 }
+
+/*
+int fib_v1(int n) {
+  using namespace mpark;
+  return match(n)(
+      pattern(arg) = [](int n) { when(n <= 0); return 0; },
+      pattern(1) = [] { return 1; },
+      pattern(arg) = [](int n) { return fib_v1(n - 1) + fib_v1(n - 2); });
+}
+*/
 
 TEST(Patterns, Intro) {
   EXPECT_EQ(120, factorial(5));
-  EXPECT_EQ(55, fib(10));
+  EXPECT_EQ(55, fib_v0(10));
 }
 
 namespace N {
@@ -179,12 +191,23 @@ TEST(Patterns, Optional) {
   EXPECT_EQ(2, test_optional(oo3));
 }
 
+namespace varargs {
+
+  template <typename F, typename Tuple>
+  decltype(auto) apply(F &&f, Tuple &&t) {
+    using namespace mpark;
+    return match(std::forward<Tuple>(t))(
+        pattern(prod(variadic(arg))) = std::forward<F>(f));
+  }
+
+}  // namespace varargs
+
 TEST(Patterns, Varargs) {
   std::tuple<int, std::string> x = {42, "hello"};
-
-  using namespace mpark;
-  match(x)(pattern(prod(*arg)) = [](const auto &lhs, const auto &rhs) {
-    EXPECT_EQ(42, lhs);
-    EXPECT_EQ("hello", rhs);
-  });
+  varargs::apply(
+      [](const auto &lhs, const auto &rhs) {
+        EXPECT_EQ(42, lhs);
+        EXPECT_EQ("hello", rhs);
+      },
+      x);
 }

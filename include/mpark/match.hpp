@@ -90,7 +90,7 @@ namespace mpark {
 
   template <typename Pattern,
             std::enable_if_t<is_pattern<Pattern>::value, int> = 0>
-  auto operator*(const Pattern &pattern) {
+  auto variadic(const Pattern &pattern) {
     return Variadic<Pattern>{pattern};
   }
 

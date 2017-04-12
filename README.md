@@ -199,7 +199,7 @@ None.
 
 #### Syntax
 
-  - `*<pattern>`
+  - `variadic(<pattern>)`
 
 #### Examples
 
@@ -208,7 +208,7 @@ auto x = std::make_tuple(101, "hello", 1.1);
 
 using namespace mpark;
 match(x)(
-    pattern(prod(*arg)) = [](const auto&... xs) {
+    pattern(prod(variadic(arg))) = [](const auto&... xs) {
       int dummy[] = { (std::cout << xs << ' ', 0)... };
       (void)dummy;
     });
@@ -219,8 +219,9 @@ This could also be used to implement [C++17 `std::apply`][apply]:
 
 ```cpp
 template <class F, class Tuple>
-constexpr decltype(auto) apply(F&& f, Tuple&& t) {
-  return match(std::forward<T>(t))(pattern(prod(*arg)) = std::forward<F>(f));
+constexpr decltype(auto) apply(F &&f, Tuple &&t) {
+  return match(std::forward<T>(t))(
+      pattern(prod(variadic(arg))) = std::forward<F>(f));
 }
 ```
 
@@ -232,7 +233,7 @@ auto y = std::make_tuple(101, "hello", 1.1);
 
 using namespace mpark;
 match(x, y)(
-    pattern(arg, prod(*arg)) = [](const auto&... xs) {
+    pattern(arg, prod(variadic(arg))) = [](const auto&... xs) {
       int dummy[] = { (std::cout << xs << ' ', 0)... };
       (void)dummy;
     });
