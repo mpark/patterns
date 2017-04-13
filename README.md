@@ -19,7 +19,7 @@
 __MPark.Patterns__ is an experimental pattern matching library for __C++14__.
 
 It determines whether a given value __matches__ a __pattern__ and, if it does,
-__passes__ the desired portions of the value to a __handler__.
+__binds__ the desired portions of the value to a __handler__.
 
 Pattern matching has been introduced to many programming languages outside of
 the functional world, and this library draws inspiration from languages such as
@@ -301,9 +301,25 @@ match(s)(
     pattern(_) = [] { std::cout << "unknown size.\n"; });
 ```
 
-## Guards
+## Pattern Guards
 
-// TODO
+While pattern matching is used to match values against patterns and bind the
+desired portions, pattern guards are used to test whether the bound values
+satisfy some predicate.
+
+#### Syntax
+
+  - `when(<condition>);`
+
+#### Examples
+
+```cpp
+match(101, 202)(
+    pattern(arg, arg) = [](auto&& lhs, auto&& rhs) { when(lhs > rhs); std::cout << "GT\n"; },
+    pattern(arg, arg) = [](auto&& lhs, auto&& rhs) { when(lhs < rhs); std::cout << "LT\n"; },
+    pattern(arg, arg) = [](auto&& lhs, auto&& rhs) { when(lhs == rhs); std::cout << "EQ\n"; });
+// prints "LT".
+```
 
 ## Related Work
 
