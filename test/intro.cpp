@@ -8,6 +8,7 @@
 
 #include <mpark/match.hpp>
 
+#include <cassert>
 #include <iostream>
 
 #include <boost/optional.hpp>
@@ -50,10 +51,19 @@ int fib_v1(int n) {
       pattern(arg) = [](int n) { return fib_v1(n - 1) + fib_v1(n - 2); });
 }
 
+int fib_v2(int n) {
+  using namespace mpark;
+  return match(n)(
+      pattern(arg) = [](int n) { when(n < 0); return 0; },
+      pattern(arg(anyof(0, 1))) = [](int n) { return n; },
+      pattern(arg) = [](int n) { return fib_v2(n - 1) + fib_v2(n - 2); });
+}
+
 TEST(Patterns, Intro) {
   EXPECT_EQ(120, factorial(5));
   EXPECT_EQ(55, fib_v0(10));
   EXPECT_EQ(55, fib_v1(10));
+  EXPECT_EQ(55, fib_v2(10));
 }
 
 namespace N {

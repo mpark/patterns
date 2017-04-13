@@ -12,6 +12,7 @@
 
 #include <gtest/gtest.h>
 
+#if 0
 struct Expr;
 
 struct Unary {
@@ -134,3 +135,4 @@ TEST(Pattern, Calc) {
     EXPECT_EQ(303, eval(expr));
   }
 }
+#endif
