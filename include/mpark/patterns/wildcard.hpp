@@ -21,7 +21,7 @@ namespace mpark {
 
     template <typename Value, typename F>
     decltype(auto) matches(Wildcard, Value &&, F &&f) {
-      return patterns::lib::invoke(std::forward<F>(f));
+      return lib::invoke(std::forward<F>(f));
     }
 
   }  // namespace patterns

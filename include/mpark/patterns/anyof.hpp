@@ -43,7 +43,7 @@ namespace mpark {
           return matches(std::get<I>(anyof.patterns),
                          std::forward<Value>(value),
                          [&](auto &&... args) {
-                           return patterns::lib::invoke(
+                           return lib::invoke(
                                std::forward<F>(f),
                                std::forward<decltype(args)>(args)...);
                          });
@@ -67,7 +67,7 @@ namespace mpark {
           return matches(std::get<I>(anyof.patterns),
                          std::forward<Value>(value),
                          [&](auto &&... args) {
-                           return patterns::lib::invoke(
+                           return lib::invoke(
                                std::forward<F>(f),
                                std::forward<decltype(args)>(args)...);
                          });

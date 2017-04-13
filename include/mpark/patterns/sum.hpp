@@ -12,18 +12,25 @@
 #include <utility>
 
 #include <mpark/patterns/fallthrough.hpp>
+#include <mpark/patterns/lib.hpp>
 #include <mpark/variant.hpp>
 
 namespace mpark {
 
   namespace patterns {
 
+    namespace detail {
+
+      struct Visit;
+
+    }  // namespace detail
+
     template <typename T, typename Pattern>
     struct Sum { const Pattern &pattern; };
 
   }  // namespace patterns
 
-  template <typename T, typename Pattern>
+  template <typename T = patterns::detail::Visit, typename Pattern>
   auto sum(const Pattern &pattern) {
     return patterns::Sum<T, Pattern>{pattern};
   }
@@ -61,6 +68,21 @@ namespace mpark {
       } catch (...) {
         fallthrough();
       }
+    }
+
+    template <typename Pattern, typename Value, typename F>
+    decltype(auto) matches(const Sum<detail::Visit, Pattern> &sum,
+                           Value &&value,
+                           F &&f) {
+        using mpark::visit;
+        return visit(
+            [&](auto &&arg) -> decltype(auto) {
+              using mpark::matches;
+              return matches(sum.pattern,
+                             std::forward<decltype(arg)>(arg),
+                             std::forward<F>(f));
+            },
+            std::forward<Value>(value));
     }
 
   }  // namespace patterns

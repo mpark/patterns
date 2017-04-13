@@ -79,7 +79,7 @@ namespace mpark {
                                   Value &&,
                                   F &&f,
                                   std::index_sequence<>) {
-        return patterns::lib::invoke(std::forward<F>(f));
+        return lib::invoke(std::forward<F>(f));
       }
 
       template <typename... Patterns,
@@ -100,7 +100,7 @@ namespace mpark {
                   prod,
                   std::forward<Value>(value),
                   [&](auto &&... tail_args) {
-                    return patterns::lib::invoke(
+                    return lib::invoke(
                         std::forward<F>(f),
                         std::forward<decltype(head_args)>(head_args)...,
                         std::forward<decltype(tail_args)>(tail_args)...);
@@ -170,47 +170,72 @@ namespace mpark {
   namespace patterns {
     namespace detail {
 
-      template <typename Patterns, typename Handler>
+      struct Deduce;
+
+      template <typename Patterns, typename F>
       struct Case {
-        Handler &&handler() && { return std::forward<Handler>(handler_); }
+        F &&f() && { return std::forward<F>(f_); }
 
         Patterns patterns;
-        Handler &&handler_;
+        F &&f_;
       };
 
       template <typename... Patterns>
       struct Pattern {
-        template <typename Handler>
-        auto operator=(Handler &&handler) && noexcept {
-          return Case<Prod<Patterns...>, Handler>{
-              std::move(patterns), std::forward<Handler>(handler)};
+        template <typename F>
+            auto operator=(F &&f) && noexcept {
+          return Case<Prod<Patterns...>, F>{std::move(patterns),
+                                            std::forward<F>(f)};
         }
 
         Prod<Patterns...> patterns;
       };
 
+      template <typename R>
+      struct Matches {
+        template <typename Patterns, typename Values, typename F>
+        R operator()(Patterns &&patterns, Values &&values, F &&f) const {
+          using mpark::matches;
+          return matches(std::forward<Patterns>(patterns),
+                         std::forward<Values>(values),
+                         std::forward<F>(f));
+        }
+      };
+
+      template <>
+      struct Matches<Deduce> {
+        template <typename Patterns, typename Values, typename F>
+        decltype(auto) operator()(Patterns &&patterns,
+                                  Values &&values,
+                                  F &&f) const {
+          using mpark::matches;
+          return matches(std::forward<Patterns>(patterns),
+                         std::forward<Values>(values),
+                         std::forward<F>(f));
+        }
+      };
+
       template <typename R, typename... Values>
       struct Match {
-        template <typename Patterns, typename Handler>
-        decltype(auto) operator()(Case<Patterns, Handler> &&case_) && {
+        template <typename Patterns, typename F>
+        decltype(auto) operator()(Case<Patterns, F> &&case_) && {
           try {
-            using mpark::matches;
-            return matches(std::move(case_).patterns,
-                           std::move(values),
-                           std::move(case_).handler());
+            return Matches<R>{}(std::move(case_).patterns,
+                                std::move(values),
+                                std::move(case_).f());
           } catch (FallThrough) {
             throw match_error("");
           }
         }
 
-        template <typename Patterns, typename Handler, typename... Cases>
-        decltype(auto) operator()(Case<Patterns, Handler> &&case_,
+        template <typename Patterns, typename F, typename... Cases>
+        decltype(auto) operator()(Case<Patterns, F> &&case_,
                                   Cases &&... cases) && {
           try {
             using mpark::matches;
-            return matches(std::move(case_).patterns,
-                           std::move(values),
-                           std::move(case_).handler());
+            return Matches<R>{}(std::move(case_).patterns,
+                                std::move(values),
+                                std::move(case_).f());
           } catch (FallThrough) {
             return std::move(*this)(std::forward<Cases>(cases)...);
           }
@@ -227,7 +252,7 @@ namespace mpark {
     return patterns::detail::Pattern<Patterns...>{prod(patterns...)};
   }
 
-  template <typename R = patterns::lib::Deduce, typename... Values>
+  template <typename R = patterns::detail::Deduce, typename... Values>
   auto match(Values &&... values) noexcept {
     return patterns::detail::Match<R, Values...>{
         std::forward_as_tuple(std::forward<Values>(values)...)};

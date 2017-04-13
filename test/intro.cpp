@@ -221,28 +221,29 @@ TEST(Patterns, Apply) {
       x);
 }
 
-/*
 namespace varargs {
 
   template <typename F, typename... Vs>
   decltype(auto) visit(F &&f, Vs &&... vs) {
+    using namespace mpark;
     return match(std::forward<Vs>(vs)...)(
-        pattern(variadic(sum(arg))) = [&](auto &&... xs) {
-          return std::forward<F>(std::forward<decltype(xs)>(xs)...);
-        });
+        pattern(variadic(sum(arg))) = std::forward<F>(f));
   }
 
 }  // namespace varargs
 
+struct Visitor {
+  void operator()(int lhs, const std::string &rhs) const {
+    EXPECT_EQ(42, lhs);
+    EXPECT_EQ("hello", rhs);
+  }
+  template <typename T, typename U>
+  void operator()(const T &, const U &) const {
+    EXPECT_TRUE(false);
+  }
+};
+
 TEST(Patterns, Visit) {
-  struct {
-    void operator()(int lhs, const std::string &rhs) const {
-      EXPECT_EQ(42, lhs);
-      EXPECT_EQ("hello", rhs);
-    }
-    void operator()(const auto &, const auto &) const { EXPECT_TRUE(false); }
-  } vis;
   mpark::variant<int, std::string> x = 42, y = "hello";
-  varargs::visit(vis, x, y);
+  varargs::visit(Visitor{}, x, y);
 }
-*/

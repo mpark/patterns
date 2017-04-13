@@ -36,9 +36,9 @@ namespace mpark {
       using mpark::matches;
       return matches(
           arg.pattern, std::forward<Value>(value), [&](auto &&... args) {
-            return patterns::lib::invoke(std::forward<F>(f),
-                                         std::forward<Value>(value),
-                                         std::forward<decltype(args)>(args)...);
+            return lib::invoke(std::forward<F>(f),
+                               std::forward<Value>(value),
+                               std::forward<decltype(args)>(args)...);
           });
     }
 

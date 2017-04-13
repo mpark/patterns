@@ -23,7 +23,7 @@ namespace mpark {
     template <typename Value, typename F>
     decltype(auto) matches(None, Value &&value, F &&f) {
       if (!std::forward<Value>(value)) {
-        return patterns::lib::invoke(std::forward<F>(f));
+        return lib::invoke(std::forward<F>(f));
       }
       fallthrough();
     }
