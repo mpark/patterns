@@ -170,8 +170,8 @@ A _sum pattern_ matches values that holds one of a set of alternatives.
 #### Requirements
 
 The type `T` satisfies `Sum` if given a variable `x` of type `T`,
-  - If `mpark::variant_size<T>` is a complete type, `x.get<T>()` and
-    `x.get_if<T>()` are valid. Otherwise, `get<T>(x)` and `get_if<T>(x)` are valid.
+  - If `mpark::variant_size<T>` is a complete type, `x.get<T>()` is valid.
+    Otherwise, `get<T>(x)` is valid.
   - `mpark::variant_size<T>::value` is a well-formed integer constant expression.
 
 #### Syntax
@@ -228,7 +228,7 @@ match(o)(
 
 ### Variadic Pattern
 
-A _variadic pattern_ matches 0 or more values that match a pattern.
+A _variadic pattern_ matches 0 or more values that match a given pattern.
 
 #### Requirements
 
@@ -276,6 +276,34 @@ match(x, y)(
     });
 // prints: "42 101 hello 1.1 "
 ```
+
+### Alternation Pattern
+
+An _alternation pattern_ matches values that match any of the given patterns.
+
+#### Requirements
+
+None.
+
+#### Syntax
+
+  - `anyof(<pattern>...)`
+
+#### Examples
+
+```cpp
+std::string s = "large";
+
+using namespace mpark;
+match(s)(
+    pattern(anyof("big", "large", "huge")) = [] { std::cout << "big!\n"; },
+    pattern(anyof("little", "small", "tiny")) = [] { std::cout << "small.\n"; },
+    pattern(_) = [] { std::cout << "unknown size.\n"; });
+```
+
+## Guards
+
+// TODO
 
 ## Related Work
 
