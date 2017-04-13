@@ -202,7 +202,7 @@ namespace varargs {
 
 }  // namespace varargs
 
-TEST(Patterns, Varargs) {
+TEST(Patterns, Apply) {
   std::tuple<int, std::string> x = {42, "hello"};
   varargs::apply(
       [](const auto &lhs, const auto &rhs) {
@@ -211,3 +211,29 @@ TEST(Patterns, Varargs) {
       },
       x);
 }
+
+/*
+namespace varargs {
+
+  template <typename F, typename... Vs>
+  decltype(auto) visit(F &&f, Vs &&... vs) {
+    return match(std::forward<Vs>(vs)...)(
+        pattern(variadic(sum(arg))) = [&](auto &&... xs) {
+          return std::forward<F>(std::forward<decltype(xs)>(xs)...);
+        });
+  }
+
+}  // namespace varargs
+
+TEST(Patterns, Visit) {
+  struct {
+    void operator()(int lhs, const std::string &rhs) const {
+      EXPECT_EQ(42, lhs);
+      EXPECT_EQ("hello", rhs);
+    }
+    void operator()(const auto &, const auto &) const { EXPECT_TRUE(false); }
+  } vis;
+  mpark::variant<int, std::string> x = 42, y = "hello";
+  varargs::visit(vis, x, y);
+}
+*/
