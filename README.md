@@ -152,8 +152,8 @@ __NOTE__: The top-level is wrapped by a `tuple`, allowing us to write:
 
 ```cpp
 void fizzbuzz() {
-  using namespace mpark;
   for (int i = 1; i <= 100; ++i) {
+    using namespace mpark;
     match(i % 3, i % 5)(
         pattern(0, 0) = [] { std::cout << "fizzbuzz\n"; },
         pattern(0, _) = [] { std::cout << "fizz\n"; },
@@ -167,16 +167,24 @@ void fizzbuzz() {
 
 A _sum pattern_ matches values that holds one of a set of alternatives.
 
+The `sum<T>` pattern matches if the given value holds an instance of `T`.
+The `sum` pattern matches values of a sum type,
+
 #### Requirements
 
+The type `T` satisfies `Sum<U>` if given a variable `x` of type `T`,
+  - If `mpark::variant_size<T>` is a complete type, `x.get<U>()` is valid.
+    Otherwise, `get<U>(x)` is valid.
+  - `mpark::variant_size<T>::value` is a well-formed integer constant expression.
+
 The type `T` satisfies `Sum` if given a variable `x` of type `T`,
-  - If `mpark::variant_size<T>` is a complete type, `x.get<T>()` is valid.
-    Otherwise, `get<T>(x)` is valid.
+  - If `mpark::variant_size<T>` is a complete type, `visit([](auto&&) {}, x)` is valid.
   - `mpark::variant_size<T>::value` is a well-formed integer constant expression.
 
 #### Syntax
 
-  - `sum<T>(<pattern>)`
+  - `sum<U>(<pattern>)`
+  - `sum(<pattern>)`
 
 #### Examples
 
@@ -188,6 +196,20 @@ using namespace mpark;
 match(v)(pattern(sum<int>(_)) = [] { std::cout << "int\n"; },
          pattern(sum<str>(_)) = [] { std::cout << "str\n"; });
 // prints "int".
+```
+
+```cpp
+using str = std::string;
+mpark::variant<int, str> v = "hello world!";
+
+struct {
+  void operator()(int n) const { std::cout << "int: " << n << '\n'; }
+  void operator()(const str& s) const { std::cout << "str: " << s << '\n'; }
+} handler;
+
+using namespace mpark;
+match(v)(pattern(sum(arg)) = handler);
+// prints: "str: hello world!".
 ```
 
 ### Optional Pattern
@@ -255,10 +277,22 @@ match(x)(
 This could also be used to implement [C++17 `std::apply`][apply]:
 
 ```cpp
-template <class F, class Tuple>
-constexpr decltype(auto) apply(F &&f, Tuple &&t) {
+template <typename F, typename Tuple>
+decltype(auto) apply(F &&f, Tuple &&t) {
+  using namespace mpark;
   return match(std::forward<T>(t))(
       pattern(prod(variadic(arg))) = std::forward<F>(f));
+}
+```
+
+and even [C++17 `std::visit`][visit]:
+
+```cpp
+template <typename F, typename... Vs>
+decltype(auto) visit(F &&f, Vs &&... vs) {
+  using namespace mpark;
+  return match(std::forward<Vs>(vs)...)(
+      pattern(variadic(sum(arg))) = std::forward<F>(f));
 }
 ```
 
@@ -314,6 +348,7 @@ satisfy some predicate.
 #### Examples
 
 ```cpp
+using namespace mpark;
 match(101, 202)(
     pattern(arg, arg) = [](auto&& lhs, auto&& rhs) { when(lhs > rhs); std::cout << "GT\n"; },
     pattern(arg, arg) = [](auto&& lhs, auto&& rhs) { when(lhs < rhs); std::cout << "LT\n"; },
@@ -327,4 +362,5 @@ match(101, 202)(
   - [jbandela/simple_match](https://github.com/jbandela/simple_match/)
 
 [apply]: http://en.cppreference.com/w/cpp/utility/apply
+[visit]: http://en.cppreference.com/w/cpp/utility/variant/visit
 [structured-bindings]: http://en.cppreference.com/w/cpp/language/declarations#Structured_binding_declaration

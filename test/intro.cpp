@@ -200,20 +200,16 @@ TEST(Patterns, Optional) {
   EXPECT_EQ(2, test_optional(oo3));
 }
 
-namespace varargs {
-
-  template <typename F, typename Tuple>
-  decltype(auto) apply(F &&f, Tuple &&t) {
-    using namespace mpark;
-    return match(std::forward<Tuple>(t))(
-        pattern(prod(variadic(arg))) = std::forward<F>(f));
-  }
-
-}  // namespace varargs
+template <typename F, typename Tuple>
+decltype(auto) apply(F &&f, Tuple &&t) {
+  using namespace mpark;
+  return match(std::forward<Tuple>(t))(
+      pattern(prod(variadic(arg))) = std::forward<F>(f));
+}
 
 TEST(Patterns, Apply) {
   std::tuple<int, std::string> x = {42, "hello"};
-  varargs::apply(
+  ::apply(
       [](const auto &lhs, const auto &rhs) {
         EXPECT_EQ(42, lhs);
         EXPECT_EQ("hello", rhs);
@@ -221,16 +217,12 @@ TEST(Patterns, Apply) {
       x);
 }
 
-namespace varargs {
-
-  template <typename F, typename... Vs>
-  decltype(auto) visit(F &&f, Vs &&... vs) {
-    using namespace mpark;
-    return match(std::forward<Vs>(vs)...)(
-        pattern(variadic(sum(arg))) = std::forward<F>(f));
-  }
-
-}  // namespace varargs
+template <typename F, typename... Vs>
+decltype(auto) visit(F &&f, Vs &&... vs) {
+  using namespace mpark;
+  return match(std::forward<Vs>(vs)...)(
+      pattern(variadic(sum(arg))) = std::forward<F>(f));
+}
 
 struct Visitor {
   void operator()(int lhs, const std::string &rhs) const {
@@ -245,5 +237,5 @@ struct Visitor {
 
 TEST(Patterns, Visit) {
   mpark::variant<int, std::string> x = 42, y = "hello";
-  varargs::visit(Visitor{}, x, y);
+  ::visit(Visitor{}, x, y);
 }

@@ -6,8 +6,8 @@
 // (See accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 
-#ifndef MPARK_PATTERNS_ANY_HPP
-#define MPARK_PATTERNS_ANY_HPP
+#ifndef MPARK_PATTERNS_ANYOF_HPP
+#define MPARK_PATTERNS_ANYOF_HPP
 
 #include <tuple>
 #include <utility>
@@ -95,4 +95,4 @@ namespace mpark {
 
 }  // namespace mpark
 
-#endif  // MPARK_PATTERNS_ANY_HPP
+#endif  // MPARK_PATTERNS_ANYOF_HPP
