@@ -42,7 +42,6 @@ int fib_v0(int n) {
       pattern(arg) = [](int n) { return fib_v0(n - 1) + fib_v0(n - 2); });
 }
 
-/*
 int fib_v1(int n) {
   using namespace mpark;
   return match(n)(
@@ -50,11 +49,11 @@ int fib_v1(int n) {
       pattern(1) = [] { return 1; },
       pattern(arg) = [](int n) { return fib_v1(n - 1) + fib_v1(n - 2); });
 }
-*/
 
 TEST(Patterns, Intro) {
   EXPECT_EQ(120, factorial(5));
   EXPECT_EQ(55, fib_v0(10));
+  EXPECT_EQ(55, fib_v1(10));
 }
 
 namespace N {

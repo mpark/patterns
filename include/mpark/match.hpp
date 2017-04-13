@@ -23,6 +23,11 @@ namespace mpark {
     using std::logic_error::logic_error;
   };
 
+  struct FallThrough {};
+
+  [[noreturn]] void fallthrough() { throw FallThrough{}; }
+  void when(bool condition) { if (!condition) { fallthrough(); } }
+
   // expr pattern.
 
   template <typename ExprPattern, typename Value>
@@ -364,22 +369,32 @@ namespace mpark {
     template <typename Patterns, typename Handler>
     decltype(auto) operator()(Case<Patterns, Handler> &&case_) && {
       const auto &patterns = std::move(case_).patterns;
-      return matches(patterns, std::move(values))
-                 ? patterns::lib::apply_r<R>(
-                       std::move(case_).handler(),
-                       bindings(patterns, std::move(values)))
-                 : throw match_error("");
+      if (matches(patterns, std::move(values))) {
+        try {
+          return patterns::lib::apply_r<R>(
+              std::move(case_).handler(),
+              bindings(patterns, std::move(values)));
+        } catch (const FallThrough &) {
+          /* do-nothing */
+        }
+      }
+      throw match_error("");
     }
 
     template <typename Patterns, typename Handler, typename... Cases>
     decltype(auto) operator()(Case<Patterns, Handler> &&case_,
                               Cases &&... cases) && {
       const auto &patterns = std::move(case_).patterns;
-      return matches(patterns, std::move(values))
-                 ? patterns::lib::apply_r<R>(
-                       std::move(case_).handler(),
-                       bindings(patterns, std::move(values)))
-                 : std::move(*this)(std::forward<Cases>(cases)...);
+      if (matches(patterns, std::move(values))) {
+        try {
+          return patterns::lib::apply_r<R>(
+              std::move(case_).handler(),
+              bindings(patterns, std::move(values)));
+        } catch (const FallThrough &) {
+          /* do-nothing */
+        }
+      }
+      return std::move(*this)(std::forward<Cases>(cases)...);
     }
 
     std::tuple<Values &&...> values;
