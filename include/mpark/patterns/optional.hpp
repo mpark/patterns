@@ -43,7 +43,7 @@ namespace mpark {
 
   }  // namespace patterns
 
-  constexpr patterns::None none;
+  constexpr patterns::None none{};
 
   template <typename Pattern>
   auto some(const Pattern &pattern) { return patterns::Some<Pattern>{pattern}; }
