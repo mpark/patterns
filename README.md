@@ -12,7 +12,7 @@
 
 [stability]: http://github.com/badges/stability-badges
 [license]: https://github.com/mpark/patterns/blob/master/LICENSE_1_0.txt
-[wandbox]: https://wandbox.org/permlink/AHuPKUpF6mQudvr8
+[wandbox]: https://wandbox.org/permlink/b7IS73NJRi8xpWyI
 
 ## Introduction
 
@@ -49,8 +49,8 @@ int eval(const std::string& equation) {
 }
 
 int main() {
-  std::cout << eval("101 plus 202") << '\n';  // prints "303".
-  std::cout << eval("64 div 2") << '\n';  // prints "32".
+  std::cout << eval("101 plus 202") << '\n';  // prints: "303".
+  std::cout << eval("64 div 2") << '\n';  // prints: "32".
 }
 ```
 
@@ -195,7 +195,7 @@ mpark::variant<int, str> v = 42;
 using namespace mpark;
 match(v)(pattern(sum<int>(_)) = [] { std::cout << "int\n"; },
          pattern(sum<str>(_)) = [] { std::cout << "str\n"; });
-// prints "int".
+// prints: "int".
 ```
 
 ```cpp
@@ -235,7 +235,7 @@ int *p = nullptr;
 using namespace mpark;
 match(p)(pattern(some(_)) = [] { std::cout << "some\n"; },
          pattern(none) = [] { std::cout << "none\n"; });
-// prints "none".
+// prints: "none".
 ```
 
 ```cpp
@@ -245,7 +245,7 @@ using namespace mpark;
 match(o)(
     pattern(some(arg)) = [](auto x) { std::cout << "some(" << x << ")\n"; },
     pattern(none) = [] { std::cout << "none\n"; });
-// prints "some(42)".
+// prints: "some(42)".
 ```
 
 ### Variadic Pattern
@@ -353,7 +353,7 @@ match(101, 202)(
     pattern(arg, arg) = [](auto&& lhs, auto&& rhs) { when(lhs > rhs); std::cout << "GT\n"; },
     pattern(arg, arg) = [](auto&& lhs, auto&& rhs) { when(lhs < rhs); std::cout << "LT\n"; },
     pattern(arg, arg) = [](auto&& lhs, auto&& rhs) { when(lhs == rhs); std::cout << "EQ\n"; });
-// prints "LT".
+// prints: "LT".
 ```
 
 ## Related Work
