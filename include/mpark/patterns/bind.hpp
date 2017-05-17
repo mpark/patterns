@@ -28,7 +28,7 @@ namespace mpark {
         return Arg<Pattern_>{pattern_};
       }
 
-      const Wildcard &pattern;
+      const Wildcard &pattern = _;
     };
 
     template <typename Pattern, typename Value, typename F>
@@ -44,7 +44,7 @@ namespace mpark {
 
   }  // namespace patterns
 
-  constexpr patterns::Arg<patterns::Wildcard> arg{_};
+  constexpr patterns::Arg<patterns::Wildcard> arg{};
 
 }  // namespace mpark
 
