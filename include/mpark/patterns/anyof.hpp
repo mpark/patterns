@@ -16,20 +16,15 @@
 #include <mpark/patterns/lib.hpp>
 
 namespace mpark {
-
   namespace patterns {
 
     template <typename... Patterns>
     struct Anyof { std::tuple<const Patterns &...> patterns; };
 
-  }  // namespace patterns
-
-  template <typename... Patterns>
-  auto anyof(const Patterns &... patterns) noexcept {
-    return patterns::Anyof<Patterns...>{std::tie(patterns...)};
-  }
-
-  namespace patterns {
+    template <typename... Patterns>
+    auto anyof(const Patterns &... patterns) noexcept {
+      return Anyof<Patterns...>{std::tie(patterns...)};
+    }
 
     namespace detail {
 
@@ -38,7 +33,6 @@ namespace mpark {
                                   Value &&value,
                                   F &&f,
                                   std::index_sequence<I>) {
-        using mpark::matches;
         try {
           return matches(std::get<I>(anyof.patterns),
                          std::forward<Value>(value),
@@ -62,7 +56,6 @@ namespace mpark {
                                   Value &&value,
                                   F &&f,
                                   std::index_sequence<I, J, Is...>) {
-        using mpark::matches;
         try {
           return matches(std::get<I>(anyof.patterns),
                          std::forward<Value>(value),
@@ -92,7 +85,6 @@ namespace mpark {
     }
 
   }  // namespace patterns
-
 }  // namespace mpark
 
 #endif  // MPARK_PATTERNS_ANYOF_HPP

@@ -6,7 +6,7 @@
 // (See accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 
-#include <mpark/match.hpp>
+#include <mpark/patterns/match.hpp>
 
 #include <mpark/variant.hpp>
 
@@ -81,7 +81,7 @@ namespace std {
 struct Expr : mpark::variant<int, Plus, Mult, Func> { using variant::variant; };
 
 std::ostream &operator<<(std::ostream &strm, const Expr &expr) {
-  using namespace mpark;
+  using namespace mpark::patterns;
   match(expr)(
       pattern(sum<int>(arg)) = [&](auto x) { strm << x; },
       pattern(sum<Plus>(prod(arg, arg))) =
@@ -98,7 +98,7 @@ std::ostream &operator<<(std::ostream &strm, const Expr &expr) {
 }
 
 int eval(const Expr &expr) {
-  using namespace mpark;
+  using namespace mpark::patterns;
   return match(expr)(
       pattern(sum<int>(arg)) = [](auto x) { return x; },
       pattern(sum<Plus>(prod(arg, arg))) = [](

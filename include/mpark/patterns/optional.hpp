@@ -15,7 +15,6 @@
 #include <mpark/patterns/lib.hpp>
 
 namespace mpark {
-
   namespace patterns {
 
     struct None {};
@@ -34,20 +33,18 @@ namespace mpark {
     template <typename Pattern, typename Value, typename F>
     decltype(auto) matches(const Some<Pattern> &some, Value &&value, F &&f) {
       if (std::forward<Value>(value)) {
-        using mpark::matches;
         return matches(
             some.pattern, *std::forward<Value>(value), std::forward<F>(f));
       }
       fallthrough();
     }
 
+    constexpr None none{};
+
+    template <typename Pattern>
+    auto some(const Pattern &pattern) { return Some<Pattern>{pattern}; }
+
   }  // namespace patterns
-
-  constexpr patterns::None none{};
-
-  template <typename Pattern>
-  auto some(const Pattern &pattern) { return patterns::Some<Pattern>{pattern}; }
-
 }  // namespace mpark
 
 #endif  // MPARK_PATTERNS_OPTIONAL_HPP

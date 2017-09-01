@@ -10,12 +10,15 @@
 #define MPARK_PATTERNS_FALLTHROUGH_HPP
 
 namespace mpark {
+  namespace patterns {
 
-  namespace patterns { namespace detail { struct FallThrough {}; } }
+    struct FallThrough {};
 
-  [[noreturn]] void fallthrough() { throw patterns::detail::FallThrough{}; }
-  void when(bool condition) { if (!condition) { fallthrough(); } }
+    [[noreturn]] void fallthrough() { throw FallThrough{}; }
 
+    void when(bool condition) { if (!condition) { fallthrough(); } }
+
+  }  // namespace patterns
 }  // namespace mpark
 
 #endif  // MPARK_PATTERNS_FALLTHROUGH_HPP

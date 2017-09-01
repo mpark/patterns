@@ -6,8 +6,8 @@
 // (See accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 
-#ifndef MPARK_MATCH_HPP
-#define MPARK_MATCH_HPP
+#ifndef MPARK_PATTERNS_MATCH_HPP
+#define MPARK_PATTERNS_MATCH_HPP
 
 #include <stdexcept>
 #include <tuple>
@@ -17,44 +17,36 @@
 #include <mpark/patterns/lib.hpp>
 
 namespace mpark {
-
-  struct match_error : std::logic_error { using logic_error::logic_error; };
-
-  template <typename ExprPattern, typename Value, typename F>
-  decltype(auto) matches(const ExprPattern &expr_pattern,
-                         Value &&value,
-                         F &&f) {
-    if (expr_pattern == std::forward<Value>(value)) {
-      return patterns::lib::invoke(std::forward<F>(f));
-    }
-    fallthrough();
-  }
-
   namespace patterns {
+
+    struct match_error : std::logic_error { using logic_error::logic_error; };
+
+    template <typename ExprPattern, typename Value, typename F>
+    decltype(auto) matches(const ExprPattern &expr_pattern,
+                           Value &&value,
+                           F &&f) {
+      if (expr_pattern == std::forward<Value>(value)) {
+        return lib::invoke(std::forward<F>(f));
+      }
+      fallthrough();
+    }
 
     template <typename Pattern>
     struct Variadic { const Pattern &pattern; };
 
-  }  // namespace patterns
-
-  template <typename Pattern>
-  auto variadic(const Pattern &pattern) noexcept {
-    return patterns::Variadic<Pattern>{pattern};
-  }
-
-  namespace patterns {
+    template <typename Pattern>
+    auto variadic(const Pattern &pattern) noexcept {
+      return Variadic<Pattern>{pattern};
+    }
 
     template <typename... Patterns>
     struct Prod { std::tuple<const Patterns &...> patterns; };
 
-  }  // namespace patterns
+    template <typename... Patterns>
+    auto prod(const Patterns &... patterns) noexcept {
+      return Prod<Patterns...>{std::tie(patterns...)};
+    }
 
-  template <typename... Patterns>
-  auto prod(const Patterns &... patterns) noexcept {
-    return patterns::Prod<Patterns...>{std::tie(patterns...)};
-  }
-
-  namespace patterns {
     namespace detail {
 
       template <std::size_t I, typename T>
@@ -91,7 +83,6 @@ namespace mpark {
                                   Value &&value,
                                   F &&f,
                                   std::index_sequence<I, Is...>) {
-        using mpark::matches;
         return matches(
             std::get<I>(prod.patterns),
             generic_get<I>(std::forward<Value>(value)),
@@ -163,11 +154,6 @@ namespace mpark {
                                   Indices{});
     }
 
-  }  // namespace patterns
-
-  // `match` DSL.
-
-  namespace patterns {
     namespace detail {
 
       struct Deduce;
@@ -195,7 +181,6 @@ namespace mpark {
       struct Matches {
         template <typename Patterns, typename Values, typename F>
         R operator()(Patterns &&patterns, Values &&values, F &&f) const {
-          using mpark::matches;
           return matches(std::forward<Patterns>(patterns),
                          std::forward<Values>(values),
                          std::forward<F>(f));
@@ -208,7 +193,6 @@ namespace mpark {
         decltype(auto) operator()(Patterns &&patterns,
                                   Values &&values,
                                   F &&f) const {
-          using mpark::matches;
           return matches(std::forward<Patterns>(patterns),
                          std::forward<Values>(values),
                          std::forward<F>(f));
@@ -232,7 +216,6 @@ namespace mpark {
         decltype(auto) operator()(Case<Patterns, F> &&case_,
                                   Cases &&... cases) && {
           try {
-            using mpark::matches;
             return Matches<R>{}(std::move(case_).patterns,
                                 std::move(values),
                                 std::move(case_).f());
@@ -245,19 +228,19 @@ namespace mpark {
       };
 
     }  // namespace detail
+
+    template <typename... Patterns>
+    auto pattern(const Patterns &... patterns) noexcept {
+      return detail::Pattern<Patterns...>{prod(patterns...)};
+    }
+
+    template <typename R = detail::Deduce, typename... Values>
+    auto match(Values &&... values) noexcept {
+      return detail::Match<R, Values...>{
+          std::forward_as_tuple(std::forward<Values>(values)...)};
+    }
+
   }  // namespace patterns
-
-  template <typename... Patterns>
-  auto pattern(const Patterns &... patterns) noexcept {
-    return patterns::detail::Pattern<Patterns...>{prod(patterns...)};
-  }
-
-  template <typename R = patterns::detail::Deduce, typename... Values>
-  auto match(Values &&... values) noexcept {
-    return patterns::detail::Match<R, Values...>{
-        std::forward_as_tuple(std::forward<Values>(values)...)};
-  }
-
 }  // namespace mpark
 
 #include <mpark/patterns/anyof.hpp>
@@ -266,4 +249,4 @@ namespace mpark {
 #include <mpark/patterns/sum.hpp>
 #include <mpark/patterns/wildcard.hpp>
 
-#endif  // MPARK_MATCH_HPP
+#endif  // MPARK_PATTERNS_MATCH_HPP

@@ -6,7 +6,7 @@
 // (See accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 
-#include <mpark/match.hpp>
+#include <mpark/patterns/match.hpp>
 
 #include <cassert>
 #include <iostream>
@@ -18,7 +18,7 @@
 #include <gtest/gtest.h>
 
 void fizzbuzz() {
-  using namespace mpark;
+  using namespace mpark::patterns;
   for (int i = 1; i <= 100; ++i) {
     match(i % 3, i % 5)(
         pattern(0, 0) = [] { std::cout << "fizzbuzz\n"; },
@@ -29,13 +29,13 @@ void fizzbuzz() {
 }
 
 int factorial(int n) {
-  using namespace mpark;
+  using namespace mpark::patterns;
   return match(n)(pattern(0) = [] { return 1; },
                   pattern(arg) = [](int n) { return n * factorial(n - 1); });
 }
 
 int fib_v0(int n) {
-  using namespace mpark;
+  using namespace mpark::patterns;
   assert(n >= 0);
   return match(n)(
       pattern(0) = [] { return 0; },
@@ -44,7 +44,7 @@ int fib_v0(int n) {
 }
 
 int fib_v1(int n) {
-  using namespace mpark;
+  using namespace mpark::patterns;
   return match(n)(
       pattern(arg) = [](int n) { when(n <= 0); return 0; },
       pattern(1) = [] { return 1; },
@@ -52,7 +52,7 @@ int fib_v1(int n) {
 }
 
 int fib_v2(int n) {
-  using namespace mpark;
+  using namespace mpark::patterns;
   return match(n)(
       pattern(arg) = [](int n) { when(n < 0); return 0; },
       pattern(arg(anyof(0, 1))) = [](int n) { return n; },
@@ -107,7 +107,7 @@ TEST(Patterns, Prod) {
   int y_zero = 0;
   int otherwise = 0;
   for (const auto &point : points) {
-    using namespace mpark;
+    using namespace mpark::patterns;
     match(point)(pattern(prod(0, 0)) = [&origin] { ++origin; },
                  pattern(prod(_, 0)) = [&y_zero] { ++y_zero; },
                  pattern(prod(_, _)) = [&otherwise] { ++otherwise; });
@@ -120,7 +120,7 @@ TEST(Patterns, Prod) {
 TEST(Patterns, CustomProd) {
   N::S s{101, "world"};
 
-  using namespace mpark;
+  using namespace mpark::patterns;
   int result = match(s)(
       pattern(prod(0, "")) = [] { return 0;  },
       pattern(arg(prod(101, arg))) = [](const auto &x, const auto &y) {
@@ -134,7 +134,7 @@ TEST(Patterns, CustomProd) {
 
 TEST(Patterns, Sum) {
   mpark::variant<int, std::string> v = 42;
-  using namespace mpark;
+  using namespace mpark::patterns;
   match(v)(
       pattern(sum<int>(arg)) = [](const auto &n) { EXPECT_EQ(42, n); },
       pattern(sum<std::string>(arg)) = [](const auto &) { EXPECT_FALSE(true); });
@@ -147,7 +147,7 @@ TEST(Patterns, MultiSum) {
   std::vector<mpark::variant<int, str>> ws = {202, "world"};
   for (const auto &v : vs) {
     for (const auto &w : ws) {
-      using namespace mpark;
+      using namespace mpark::patterns;
       match(v, w)(
           pattern(sum<int>(arg), sum<int>(arg)) = [](auto x, auto y) {
             EXPECT_EQ(101, x);
@@ -171,7 +171,7 @@ TEST(Patterns, MultiSum) {
 
 TEST(Patterns, Pointer) {
   auto holds = [](int *p) {
-    using namespace mpark;
+    using namespace mpark::patterns;
     return match(p)(pattern(some(_)) = [] { return true; },
                     pattern(none) = [] { return false; });
   };
@@ -185,7 +185,7 @@ TEST(Patterns, Optional) {
   using boost::optional;
 
   auto test_optional = [](const optional<optional<int>> &oo) {
-    using namespace mpark;
+    using namespace mpark::patterns;
     return match(oo)(pattern(some(some(_))) = [] { return 0; },
                      pattern(some(none)) = [] { return 1; },
                      pattern(none) = [] { return 2; });
@@ -202,7 +202,7 @@ TEST(Patterns, Optional) {
 
 template <typename F, typename Tuple>
 decltype(auto) apply(F &&f, Tuple &&t) {
-  using namespace mpark;
+  using namespace mpark::patterns;
   return match(std::forward<Tuple>(t))(
       pattern(prod(variadic(arg))) = std::forward<F>(f));
 }
@@ -219,7 +219,7 @@ TEST(Patterns, Apply) {
 
 template <typename F, typename... Vs>
 decltype(auto) visit(F &&f, Vs &&... vs) {
-  using namespace mpark;
+  using namespace mpark::patterns;
   return match(std::forward<Vs>(vs)...)(
       pattern(variadic(sum(arg))) = std::forward<F>(f));
 }

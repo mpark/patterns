@@ -14,7 +14,6 @@
 #include <mpark/patterns/lib.hpp>
 
 namespace mpark {
-
   namespace patterns {
 
     struct Wildcard {};
@@ -24,10 +23,9 @@ namespace mpark {
       return lib::invoke(std::forward<F>(f));
     }
 
+    constexpr Wildcard _{};
+
   }  // namespace patterns
-
-  constexpr patterns::Wildcard _{};
-
 }  // namespace mpark
 
 #endif  // MPARK_PATTERNS_WILDCARD_HPP

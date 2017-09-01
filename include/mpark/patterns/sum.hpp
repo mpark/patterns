@@ -16,26 +16,17 @@
 #include <mpark/variant.hpp>
 
 namespace mpark {
-
   namespace patterns {
 
-    namespace detail {
-
-      struct Visit;
-
-    }  // namespace detail
+    namespace detail { struct Visit; }
 
     template <typename T, typename Pattern>
     struct Sum { const Pattern &pattern; };
 
-  }  // namespace patterns
-
-  template <typename T = patterns::detail::Visit, typename Pattern>
-  auto sum(const Pattern &pattern) {
-    return patterns::Sum<T, Pattern>{pattern};
-  }
-
-  namespace patterns {
+    template <typename T = detail::Visit, typename Pattern>
+    auto sum(const Pattern &pattern) {
+      return Sum<T, Pattern>{pattern};
+    }
 
     namespace detail {
 
@@ -61,7 +52,6 @@ namespace mpark {
     template <typename T, typename Pattern, typename Value, typename F>
     decltype(auto) matches(const Sum<T, Pattern> &sum, Value &&value, F &&f) {
       try {
-        using mpark::matches;
         return matches(sum.pattern,
                        detail::generic_get<T>(std::forward<Value>(value)),
                        std::forward<F>(f));
@@ -74,19 +64,17 @@ namespace mpark {
     decltype(auto) matches(const Sum<detail::Visit, Pattern> &sum,
                            Value &&value,
                            F &&f) {
-        using mpark::visit;
-        return visit(
-            [&](auto &&arg) -> decltype(auto) {
-              using mpark::matches;
-              return matches(sum.pattern,
-                             std::forward<decltype(arg)>(arg),
-                             std::forward<F>(f));
-            },
-            std::forward<Value>(value));
+      using mpark::visit;
+      return visit(
+          [&](auto &&arg) -> decltype(auto) {
+            return matches(sum.pattern,
+                           std::forward<decltype(arg)>(arg),
+                           std::forward<F>(f));
+          },
+          std::forward<Value>(value));
     }
 
   }  // namespace patterns
-
 }  // namespace mpark
 
 #endif  // MPARK_PATTERNS_SUM_HPP
