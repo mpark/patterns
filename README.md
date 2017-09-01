@@ -8,10 +8,10 @@
 
 [badge.stability]: https://img.shields.io/badge/stability-experimental-orange.svg
 [badge.license]: http://img.shields.io/badge/license-boost-blue.svg
-[badge.wandbox]: https://img.shields.io/badge/try%20it-on%20wandbox-green.svg
+[badge.wandbox]: https://img.shields.io/badge/try%20it-on%20wandbox-5cb85c.svg
 
 [stability]: http://github.com/badges/stability-badges
-[license]: https://github.com/mpark/patterns/blob/master/LICENSE_1_0.txt
+[license]: https://github.com/mpark/patterns/blob/master/LICENSE.md
 [wandbox]: https://wandbox.org/permlink/b7IS73NJRi8xpWyI
 
 ## Introduction
@@ -40,7 +40,7 @@ int eval(const std::string& equation) {
   std::string op;
   strm >> lhs >> op >> rhs;
 
-  using namespace mpark;
+  using namespace mpark::patterns;
   return match(lhs, op, rhs)(
       pattern(arg, "plus", arg) = std::plus<>{},
       pattern(arg, "minus", arg) = std::minus<>{},
@@ -57,10 +57,10 @@ int main() {
 ## Basic Syntax
 
 ```cpp
-using namespace mpark;
+using namespace mpark::patterns;
 match(<expr>...)(
-  pattern(<pattern>...) = <handler>,
-  pattern(<pattern>...) = <handler>,
+  pattern(<pattern>...) = [](<binding>...) { /* ... */ },
+  pattern(<pattern>...) = [](<binding>...) { /* ... */ },
   // ...
 );
 ```
@@ -83,7 +83,7 @@ None.
 
 ```cpp
 int factorial(int n) {
-  using namespace mpark;
+  using namespace mpark::patterns;
   return match(n)(pattern(0) = [] { return 1; },
                   pattern(_) = [n] { return n * factorial(n - 1); });
 }
@@ -106,7 +106,7 @@ None.
 
 ```cpp
 int factorial(int n) {
-  using namespace mpark;
+  using namespace mpark::patterns;
   return match(n)(pattern(0) = [] { return 1; },
                   pattern(arg) = [](auto n) { return n * factorial(n - 1); });
 }
@@ -141,7 +141,7 @@ const auto& [x, y, z] = t;
 // ...
 
 // C++14 MPark.Patterns:
-using namespace mpark;
+using namespace mpark::patterns;
 match(t)(
     pattern(prod(arg, arg, arg)) = [](const auto& x, const auto& y, const auto& z) {
       // ...
@@ -153,7 +153,7 @@ __NOTE__: The top-level is wrapped by a `tuple`, allowing us to write:
 ```cpp
 void fizzbuzz() {
   for (int i = 1; i <= 100; ++i) {
-    using namespace mpark;
+    using namespace mpark::patterns;
     match(i % 3, i % 5)(
         pattern(0, 0) = [] { std::cout << "fizzbuzz\n"; },
         pattern(0, _) = [] { std::cout << "fizz\n"; },
@@ -192,7 +192,7 @@ The type `T` satisfies `Sum` if given a variable `x` of type `T`,
 using str = std::string;
 mpark::variant<int, str> v = 42;
 
-using namespace mpark;
+using namespace mpark::patterns;
 match(v)(pattern(sum<int>(_)) = [] { std::cout << "int\n"; },
          pattern(sum<str>(_)) = [] { std::cout << "str\n"; });
 // prints: "int".
@@ -207,7 +207,7 @@ struct {
   void operator()(const str& s) const { std::cout << "str: " << s << '\n'; }
 } handler;
 
-using namespace mpark;
+using namespace mpark::patterns;
 match(v)(pattern(sum(arg)) = handler);
 // prints: "str: hello world!".
 ```
@@ -232,7 +232,7 @@ The type `T` satisfies `Optional` if given a variable `x` of type `T`,
 ```cpp
 int *p = nullptr;
 
-using namespace mpark;
+using namespace mpark::patterns;
 match(p)(pattern(some(_)) = [] { std::cout << "some\n"; },
          pattern(none) = [] { std::cout << "none\n"; });
 // prints: "none".
@@ -241,7 +241,7 @@ match(p)(pattern(some(_)) = [] { std::cout << "some\n"; },
 ```cpp
 boost::optional<int> o = 42;
 
-using namespace mpark;
+using namespace mpark::patterns;
 match(o)(
     pattern(some(arg)) = [](auto x) { std::cout << "some(" << x << ")\n"; },
     pattern(none) = [] { std::cout << "none\n"; });
@@ -265,7 +265,7 @@ None.
 ```cpp
 auto x = std::make_tuple(101, "hello", 1.1);
 
-using namespace mpark;
+using namespace mpark::patterns;
 match(x)(
     pattern(prod(variadic(arg))) = [](const auto&... xs) {
       int dummy[] = { (std::cout << xs << ' ', 0)... };
@@ -279,7 +279,7 @@ This could also be used to implement [C++17 `std::apply`][apply]:
 ```cpp
 template <typename F, typename Tuple>
 decltype(auto) apply(F &&f, Tuple &&t) {
-  using namespace mpark;
+  using namespace mpark::patterns;
   return match(std::forward<T>(t))(
       pattern(prod(variadic(arg))) = std::forward<F>(f));
 }
@@ -290,7 +290,7 @@ and even [C++17 `std::visit`][visit]:
 ```cpp
 template <typename F, typename... Vs>
 decltype(auto) visit(F &&f, Vs &&... vs) {
-  using namespace mpark;
+  using namespace mpark::patterns;
   return match(std::forward<Vs>(vs)...)(
       pattern(variadic(sum(arg))) = std::forward<F>(f));
 }
@@ -302,7 +302,7 @@ We can even get a little fancier:
 int x = 42;
 auto y = std::make_tuple(101, "hello", 1.1);
 
-using namespace mpark;
+using namespace mpark::patterns;
 match(x, y)(
     pattern(arg, prod(variadic(arg))) = [](const auto&... xs) {
       int dummy[] = { (std::cout << xs << ' ', 0)... };
@@ -328,7 +328,7 @@ None.
 ```cpp
 std::string s = "large";
 
-using namespace mpark;
+using namespace mpark::patterns;
 match(s)(
     pattern(anyof("big", "large", "huge")) = [] { std::cout << "big!\n"; },
     pattern(anyof("little", "small", "tiny")) = [] { std::cout << "small.\n"; },
@@ -348,7 +348,7 @@ satisfy some predicate.
 #### Examples
 
 ```cpp
-using namespace mpark;
+using namespace mpark::patterns;
 match(101, 202)(
     pattern(arg, arg) = [](auto&& lhs, auto&& rhs) { when(lhs > rhs); std::cout << "GT\n"; },
     pattern(arg, arg) = [](auto&& lhs, auto&& rhs) { when(lhs < rhs); std::cout << "LT\n"; },

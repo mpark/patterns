@@ -8,11 +8,11 @@
 
 [badge.stability]: https://img.shields.io/badge/stability-experimental-orange.svg
 [badge.license]: http://img.shields.io/badge/license-boost-blue.svg
-[badge.wandbox]: https://img.shields.io/badge/try%20it-on%20wandbox-green.svg
+[badge.wandbox]: https://img.shields.io/badge/try%20it-on%20wandbox-5cb85c.svg
 
 [stability]: http://github.com/badges/stability-badges
-[license]: https://github.com/mpark/patterns/blob/master/LICENSE_1_0.txt
-[wandbox]: https://wandbox.org/permlink/AHuPKUpF6mQudvr8
+[license]: https://github.com/mpark/patterns/blob/master/LICENSE.md
+[wandbox]: https://wandbox.org/permlink/b7IS73NJRi8xpWyI
 
 ## Test
 
