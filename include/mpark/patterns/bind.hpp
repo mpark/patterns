@@ -11,8 +11,8 @@
 
 #include <utility>
 
-#include <mpark/patterns/lib.hpp>
-#include <mpark/patterns/wildcard.hpp>
+#include "lib.hpp"
+#include "wildcard.hpp"
 
 namespace mpark {
   namespace patterns {

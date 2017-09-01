@@ -13,8 +13,8 @@
 #include <tuple>
 #include <utility>
 
-#include <mpark/patterns/fallthrough.hpp>
-#include <mpark/patterns/lib.hpp>
+#include "fallthrough.hpp"
+#include "lib.hpp"
 
 namespace mpark {
   namespace patterns {
@@ -243,10 +243,10 @@ namespace mpark {
   }  // namespace patterns
 }  // namespace mpark
 
-#include <mpark/patterns/anyof.hpp>
-#include <mpark/patterns/bind.hpp>
-#include <mpark/patterns/optional.hpp>
-#include <mpark/patterns/sum.hpp>
-#include <mpark/patterns/wildcard.hpp>
+#include "anyof.hpp"
+#include "bind.hpp"
+#include "optional.hpp"
+#include "sum.hpp"
+#include "wildcard.hpp"
 
 #endif  // MPARK_PATTERNS_MATCH_HPP

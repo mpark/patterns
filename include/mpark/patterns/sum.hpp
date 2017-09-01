@@ -11,9 +11,10 @@
 
 #include <utility>
 
-#include <mpark/patterns/fallthrough.hpp>
-#include <mpark/patterns/lib.hpp>
 #include <mpark/variant.hpp>
+
+#include "fallthrough.hpp"
+#include "lib.hpp"
 
 namespace mpark {
   namespace patterns {

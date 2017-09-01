@@ -12,8 +12,8 @@
 #include <tuple>
 #include <utility>
 
-#include <mpark/patterns/fallthrough.hpp>
-#include <mpark/patterns/lib.hpp>
+#include "fallthrough.hpp"
+#include "lib.hpp"
 
 namespace mpark {
   namespace patterns {

@@ -11,7 +11,7 @@
 
 #include <utility>
 
-#include <mpark/patterns/lib.hpp>
+#include "lib.hpp"
 
 namespace mpark {
   namespace patterns {
