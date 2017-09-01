@@ -12,7 +12,7 @@
 
 [stability]: http://github.com/badges/stability-badges
 [license]: https://github.com/mpark/patterns/blob/master/LICENSE.md
-[wandbox]: https://wandbox.org/permlink/b7IS73NJRi8xpWyI
+[wandbox]: https://wandbox.org/permlink/G46QnPBB0OiV5m0N
 
 ## Test
 
