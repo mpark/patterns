@@ -11,38 +11,33 @@
 
 #include <utility>
 
-#include "fallthrough.hpp"
 #include "lib.hpp"
+#include "match.hpp"
 
 namespace mpark {
   namespace patterns {
 
-    struct None {};
+    struct none_t {};
+    constexpr none_t none{};
 
     template <typename Value, typename F>
-    decltype(auto) matches(None, Value &&value, F &&f) {
-      if (!std::forward<Value>(value)) {
-        return lib::invoke(std::forward<F>(f));
-      }
-      fallthrough();
+    auto matches(none_t, Value &&value, F &&f) {
+      return value ? no_match : match_invoke(std::forward<F>(f));
     }
 
     template <typename Pattern>
-    struct Some { const Pattern &pattern; };
+    struct some_t { const Pattern &pattern; };
+
+    template <typename Pattern>
+    auto some(const Pattern &pattern) { return some_t<Pattern>{pattern}; }
 
     template <typename Pattern, typename Value, typename F>
-    decltype(auto) matches(const Some<Pattern> &some, Value &&value, F &&f) {
-      if (std::forward<Value>(value)) {
-        return matches(
-            some.pattern, *std::forward<Value>(value), std::forward<F>(f));
-      }
-      fallthrough();
+    decltype(auto) matches(const some_t<Pattern> &some, Value &&value, F &&f) {
+      return value ? matches(some.pattern,
+                             *std::forward<Value>(value),
+                             std::forward<F>(f))
+                   : no_match;
     }
-
-    constexpr None none{};
-
-    template <typename Pattern>
-    auto some(const Pattern &pattern) { return Some<Pattern>{pattern}; }
 
   }  // namespace patterns
 }  // namespace mpark

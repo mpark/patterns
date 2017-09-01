@@ -8,27 +8,32 @@
 
 cmake_minimum_required(VERSION 3.6.3)
 
+option(MPARK_PATTERNS_EXCEPTIONS
+       "Build the tests with exceptions-handling support." ON)
+
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" AND
-   "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
-  add_compile_options(-Qunused-arguments)
-  add_compile_options(-Wno-deprecated-declarations)
-  add_compile_options(-Wno-unknown-argument)
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang" OR
+   "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR
+   "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  add_compile_options(-Wall)
+  add_compile_options(-Werror)
+  add_compile_options(-Wextra)
+  add_compile_options(-pedantic)
+  if(NOT ${MPARK_PATTERNS_EXCEPTIONS})
+    add_compile_options(-fno-exceptions)
+  endif()
 endif()
 
-if(MPARK_PATTERNS_INCLUDE_TESTS)
+set(MPARK_TESTS
+  intro
+  calc)
 
-  function(add_gtest name)
-    add_executable(${name} ${name}.cpp)
-    set_target_properties(${name} PROPERTIES COMPILE_FLAGS "${cxx_strict}")
-    target_link_libraries(${name} gtest_main mpark_patterns mpark_variant)
-    add_test(${name} ${name} --gtest_color=yes)
-  endfunction(add_gtest)
-
-  add_gtest(intro)
-  add_gtest(calc)
-
-endif()
+foreach(test ${MPARK_TESTS})
+  add_executable(${test} ${test}.cpp)
+  set_target_properties(${test} PROPERTIES COMPILE_FLAGS "${cxx_strict}")
+  target_link_libraries(${test} gtest_main mpark_patterns)
+  add_test(${test} ${test} --gtest_color=yes)
+endforeach()

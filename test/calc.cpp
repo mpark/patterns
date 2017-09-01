@@ -8,8 +8,6 @@
 
 #include <mpark/patterns/match.hpp>
 
-#include <mpark/variant.hpp>
-
 #include <gtest/gtest.h>
 
 struct Expr;
@@ -70,15 +68,15 @@ struct Func : Unary { using Unary::Unary; };
 
 namespace std {
 
-  template <> struct tuple_size<Unary> : integral_constant<size_t, 1> {};
-  template <> struct tuple_size<Binary> : integral_constant<size_t, 2> {};
-  template <> struct tuple_size<Plus> : tuple_size<Binary> {};
-  template <> struct tuple_size<Mult> : tuple_size<Binary> {};
-  template <> struct tuple_size<Func> : tuple_size<Unary> {};
+  template <> class tuple_size<Unary> : public integral_constant<size_t, 1> {};
+  template <> class tuple_size<Binary> : public integral_constant<size_t, 2> {};
+  template <> class tuple_size<Plus> : public tuple_size<Binary> {};
+  template <> class tuple_size<Mult> : public tuple_size<Binary> {};
+  template <> class tuple_size<Func> : public tuple_size<Unary> {};
 
 }  // namespace std
 
-struct Expr : mpark::variant<int, Plus, Mult, Func> { using variant::variant; };
+struct Expr : std::variant<int, Plus, Mult, Func> { using variant::variant; };
 
 std::ostream &operator<<(std::ostream &strm, const Expr &expr) {
   using namespace mpark::patterns;

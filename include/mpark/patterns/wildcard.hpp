@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "lib.hpp"
+#include "match.hpp"
 
 namespace mpark {
   namespace patterns {
@@ -19,8 +20,8 @@ namespace mpark {
     struct Wildcard {};
 
     template <typename Value, typename F>
-    decltype(auto) matches(Wildcard, Value &&, F &&f) {
-      return lib::invoke(std::forward<F>(f));
+    auto matches(Wildcard, Value &&, F &&f) {
+      return match_invoke(std::forward<F>(f));
     }
 
     constexpr Wildcard _{};

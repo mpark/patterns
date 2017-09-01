@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "lib.hpp"
+#include "match.hpp"
 #include "wildcard.hpp"
 
 namespace mpark {
@@ -31,12 +32,12 @@ namespace mpark {
     };
 
     template <typename Pattern, typename Value, typename F>
-    decltype(auto) matches(const Arg<Pattern> &arg, Value &&value, F &&f) {
+    auto matches(const Arg<Pattern> &arg, Value &&value, F &&f) {
       return matches(
           arg.pattern, std::forward<Value>(value), [&](auto &&... args) {
-            return lib::invoke(std::forward<F>(f),
-                               std::forward<Value>(value),
-                               std::forward<decltype(args)>(args)...);
+            return match_invoke(std::forward<F>(f),
+                                std::forward<Value>(value),
+                                std::forward<decltype(args)>(args)...);
           });
     }
 

@@ -13,8 +13,6 @@
 
 #include <boost/optional.hpp>
 
-#include <mpark/variant.hpp>
-
 #include <gtest/gtest.h>
 
 void fizzbuzz() {
@@ -46,7 +44,7 @@ int fib_v0(int n) {
 int fib_v1(int n) {
   using namespace mpark::patterns;
   return match(n)(
-      pattern(arg) = [](int n) { when(n <= 0); return 0; },
+      pattern(arg) = [](int n) { WHEN(n <= 0) { return 0; }; },
       pattern(1) = [] { return 1; },
       pattern(arg) = [](int n) { return fib_v1(n - 1) + fib_v1(n - 2); });
 }
@@ -54,7 +52,7 @@ int fib_v1(int n) {
 int fib_v2(int n) {
   using namespace mpark::patterns;
   return match(n)(
-      pattern(arg) = [](int n) { when(n < 0); return 0; },
+      pattern(arg) = [](int n) { WHEN(n < 0) { return 0; }; },
       pattern(arg(anyof(0, 1))) = [](int n) { return n; },
       pattern(arg) = [](int n) { return fib_v2(n - 1) + fib_v2(n - 2); });
 }
@@ -96,8 +94,8 @@ namespace N {
 namespace std {
 
   template <>
-  struct tuple_size<N::S>
-      : tuple_size<decltype(N::S::to_tuple(std::declval<N::S>()))> {};
+  class tuple_size<N::S>
+      : public tuple_size<decltype(N::S::to_tuple(std::declval<N::S>()))> {};
 
 }  // namespace std
 
@@ -133,7 +131,7 @@ TEST(Patterns, CustomProd) {
 }
 
 TEST(Patterns, Sum) {
-  mpark::variant<int, std::string> v = 42;
+  std::variant<int, std::string> v = 42;
   using namespace mpark::patterns;
   match(v)(
       pattern(sum<int>(arg)) = [](const auto &n) { EXPECT_EQ(42, n); },
@@ -143,8 +141,8 @@ TEST(Patterns, Sum) {
 TEST(Patterns, MultiSum) {
   using str = std::string;
 
-  std::vector<mpark::variant<int, str>> vs = {101, "hello"};
-  std::vector<mpark::variant<int, str>> ws = {202, "world"};
+  std::vector<std::variant<int, str>> vs = {101, "hello"};
+  std::vector<std::variant<int, str>> ws = {202, "world"};
   for (const auto &v : vs) {
     for (const auto &w : ws) {
       using namespace mpark::patterns;
@@ -153,15 +151,15 @@ TEST(Patterns, MultiSum) {
             EXPECT_EQ(101, x);
             EXPECT_EQ(202, y);
           },
-          pattern(sum<int>(arg), sum<str>(arg)) = [](auto x, const auto &y) {
+          pattern(sum<int>(arg), sum<str>(arg)) = [](auto x, auto y) {
             EXPECT_EQ(101, x);
             EXPECT_EQ("world", y);
           },
-          pattern(sum<str>(arg), sum<int>(arg)) = [](const auto &x, auto y) {
+          pattern(sum<str>(arg), sum<int>(arg)) = [](auto x, auto y) {
             EXPECT_EQ("hello", x);
             EXPECT_EQ(202, y);
           },
-          pattern(sum<str>(arg), sum<str>(arg)) = [](const auto &x, const auto &y) {
+          pattern(sum<str>(arg), sum<str>(arg)) = [](auto x, auto y) {
             EXPECT_EQ("hello", x);
             EXPECT_EQ("world", y);
           });
@@ -236,6 +234,18 @@ struct Visitor {
 };
 
 TEST(Patterns, Visit) {
-  mpark::variant<int, std::string> x = 42, y = "hello";
+  std::variant<int, std::string> x = 42, y = "hello";
   ::visit(Visitor{}, x, y);
+}
+
+TEST(Patterns, ExplicitReturnType) {
+  boost::optional<int> o(42);
+
+  using namespace mpark::patterns;
+  auto x = match<int>(o)(
+      pattern(some(arg)) = [](int v) { return static_cast<std::size_t>(v); },
+      pattern(none) = [] { return 'A'; });
+
+  static_assert(std::is_same<decltype(x), int>::value, "");
+  EXPECT_EQ(42, x);
 }

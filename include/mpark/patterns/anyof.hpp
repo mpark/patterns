@@ -12,7 +12,6 @@
 #include <tuple>
 #include <utility>
 
-#include "fallthrough.hpp"
 #include "lib.hpp"
 
 namespace mpark {
@@ -29,21 +28,17 @@ namespace mpark {
     namespace detail {
 
       template <typename... Patterns, typename Value, typename F, std::size_t I>
-      decltype(auto) matches_impl(const Anyof<Patterns...> &anyof,
-                                  Value &&value,
-                                  F &&f,
-                                  std::index_sequence<I>) {
-        try {
-          return matches(std::get<I>(anyof.patterns),
-                         std::forward<Value>(value),
-                         [&](auto &&... args) {
-                           return lib::invoke(
-                               std::forward<F>(f),
-                               std::forward<decltype(args)>(args)...);
-                         });
-        } catch (FallThrough) {
-          throw;
-        }
+      auto matches_impl(const Anyof<Patterns...> &anyof,
+                        Value &&value,
+                        F &&f,
+                        std::index_sequence<I>) {
+        return matches(std::get<I>(anyof.patterns),
+                       std::forward<Value>(value),
+                       [&](auto &&... args) {
+                         return match_invoke(
+                             std::forward<F>(f),
+                             std::forward<decltype(args)>(args)...);
+                       });
       }
 
       template <typename... Patterns,
@@ -51,33 +46,29 @@ namespace mpark {
                 typename F,
                 std::size_t I,
                 std::size_t J,
-                std::size_t... Is>
-      decltype(auto) matches_impl(const Anyof<Patterns...> &anyof,
-                                  Value &&value,
-                                  F &&f,
-                                  std::index_sequence<I, J, Is...>) {
-        try {
-          return matches(std::get<I>(anyof.patterns),
-                         std::forward<Value>(value),
-                         [&](auto &&... args) {
-                           return lib::invoke(
-                               std::forward<F>(f),
-                               std::forward<decltype(args)>(args)...);
-                         });
-        } catch (FallThrough) {
-          return matches_impl(anyof,
+                std::size_t... Js>
+      auto matches_impl(const Anyof<Patterns...> &anyof,
+                        Value &&value,
+                        F &&f,
+                        std::index_sequence<I, J, Js...>) {
+        auto result = matches(std::get<I>(anyof.patterns),
                               std::forward<Value>(value),
-                              std::forward<F>(f),
-                              std::index_sequence<J, Is...>{});
-        }
+                              [&](auto &&... args) {
+                                return match_invoke(
+                                    std::forward<F>(f),
+                                    std::forward<decltype(args)>(args)...);
+                              });
+        return result ? std::move(result)
+                      : matches_impl(anyof,
+                                     std::forward<Value>(value),
+                                     std::forward<F>(f),
+                                     std::index_sequence<J, Js...>{});
       }
 
     }  // namespace detail
 
     template <typename... Patterns, typename Value, typename F>
-    decltype(auto) matches(const Anyof<Patterns...> &anyof,
-                           Value &&value,
-                           F &&f) {
+    auto matches(const Anyof<Patterns...> &anyof, Value &&value, F &&f) {
       return detail::matches_impl(anyof,
                                   std::forward<Value>(value),
                                   std::forward<F>(f),

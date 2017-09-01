@@ -13,9 +13,6 @@ project(MPark.Patterns VERSION 1.0.0 LANGUAGES CXX)
 # Option.
 option(MPARK_PATTERNS_INCLUDE_TESTS "Build tests." OFF)
 
-# Dependency on `mpark/variant`.
-add_subdirectory(3rdparty/variant)
-
 # Target.
 add_library(mpark_patterns INTERFACE)
 target_include_directories(mpark_patterns INTERFACE
@@ -57,7 +54,18 @@ install(
   DESTINATION lib/cmake/mpark_patterns)
 
 if(MPARK_PATTERNS_INCLUDE_TESTS)
-  enable_testing()
+  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" AND
+     "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
+    add_compile_options(-Qunused-arguments)
+    add_compile_options(-Wno-deprecated-declarations)
+    add_compile_options(-Wno-unknown-argument)
+  endif()
+
+  add_definitions(-DGTEST_HAS_TR1_TUPLE=0)
+  add_definitions(-DGTEST_HAS_STD_TUPLE=1)
   add_subdirectory(3rdparty/googletest/googletest)
+  config_compiler_and_linker()
+
+  enable_testing()
   add_subdirectory(test)
 endif()

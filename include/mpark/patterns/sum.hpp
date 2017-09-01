@@ -11,10 +11,8 @@
 
 #include <utility>
 
-#include <mpark/variant.hpp>
-
-#include "fallthrough.hpp"
 #include "lib.hpp"
+#include "std/variant.hpp"
 
 namespace mpark {
   namespace patterns {
@@ -22,11 +20,17 @@ namespace mpark {
     namespace detail { struct Visit; }
 
     template <typename T, typename Pattern>
-    struct Sum { const Pattern &pattern; };
+    struct SumByType { const Pattern &pattern; };
+
+    template <typename Pattern>
+    struct SumByVisit { const Pattern &pattern; };
 
     template <typename T = detail::Visit, typename Pattern>
     auto sum(const Pattern &pattern) {
-      return Sum<T, Pattern>{pattern};
+      using Sum = std::conditional_t<std::is_same<T, detail::Visit>::value,
+                                     SumByVisit<Pattern>,
+                                     SumByType<T, Pattern>>;
+      return Sum{pattern};
     }
 
     namespace detail {
@@ -39,7 +43,7 @@ namespace mpark {
 
       template <typename T, typename V>
       decltype(auto) generic_get_impl(V &&v, long) {
-        using mpark::get;
+        using std::get;
         return get<T>(std::forward<V>(v));
       }
 
@@ -48,26 +52,38 @@ namespace mpark {
         return generic_get_impl<T>(std::forward<V>(v), 0);
       }
 
+      template <typename T, typename V>
+      auto generic_get_if_impl(V &&v, int)
+          -> decltype(std::forward<V>(v).template get_if<T>()) {
+        return std::forward<V>(v).template get_if<T>();
+      }
+
+      template <typename T, typename V>
+      auto *generic_get_if_impl(V &&v, long) {
+        using std::get_if;
+        return get_if<T>(&v);
+      }
+
+      template <typename T, typename V>
+      auto *generic_get_if(V &&v) {
+        return generic_get_if_impl<T>(std::forward<V>(v), 0);
+      }
+
     }  // namespace detail
 
     template <typename T, typename Pattern, typename Value, typename F>
-    decltype(auto) matches(const Sum<T, Pattern> &sum, Value &&value, F &&f) {
-      try {
-        return matches(sum.pattern,
-                       detail::generic_get<T>(std::forward<Value>(value)),
-                       std::forward<F>(f));
-      } catch (...) {
-        fallthrough();
-      }
+    auto matches(const SumByType<T, Pattern> &sum, Value &&value, F &&f) {
+      using V = decltype(detail::generic_get<T>(std::forward<Value>(value)));
+      auto *v = detail::generic_get_if<T>(std::forward<Value>(value));
+      return v ? matches(sum.pattern, std::forward<V>(*v), std::forward<F>(f))
+               : no_match;
     }
 
     template <typename Pattern, typename Value, typename F>
-    decltype(auto) matches(const Sum<detail::Visit, Pattern> &sum,
-                           Value &&value,
-                           F &&f) {
-      using mpark::visit;
+    auto matches(const SumByVisit<Pattern> &sum, Value &&value, F &&f) {
+      using std::visit;
       return visit(
-          [&](auto &&arg) -> decltype(auto) {
+          [&](auto &&arg) {
             return matches(sum.pattern,
                            std::forward<decltype(arg)>(arg),
                            std::forward<F>(f));
