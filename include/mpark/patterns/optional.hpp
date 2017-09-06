@@ -12,7 +12,6 @@
 #include <utility>
 
 #include "lib.hpp"
-#include "match.hpp"
 
 namespace mpark {
   namespace patterns {

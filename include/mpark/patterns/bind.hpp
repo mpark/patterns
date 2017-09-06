@@ -12,7 +12,6 @@
 #include <utility>
 
 #include "lib.hpp"
-#include "match.hpp"
 #include "wildcard.hpp"
 
 namespace mpark {
