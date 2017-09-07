@@ -8,6 +8,10 @@
 #ifndef MPARK_PATTERNS_CONFIG_HPP
 #define MPARK_PATTERNS_CONFIG_HPP
 
+#ifndef __has_feature
+#define __has_feature(x) 0
+#endif
+
 #if __has_feature(cxx_exceptions) || defined(__cpp_exceptions)
 #define MPARK_PATTERNS_EXCEPTIONS
 #endif
