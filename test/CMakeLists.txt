@@ -11,9 +11,7 @@ cmake_minimum_required(VERSION 3.6.3)
 option(MPARK_PATTERNS_EXCEPTIONS
        "Build the tests with exceptions-handling support." ON)
 
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+add_compile_options(-std=c++1z)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang" OR
    "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR
@@ -28,8 +26,10 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang" OR
 endif()
 
 set(MPARK_TESTS
+  array
+  calc
   intro
-  calc)
+  regex)
 
 foreach(test ${MPARK_TESTS})
   add_executable(${test} ${test}.cpp)

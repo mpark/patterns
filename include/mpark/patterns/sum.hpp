@@ -9,10 +9,9 @@
 #ifndef MPARK_PATTERNS_SUM_HPP
 #define MPARK_PATTERNS_SUM_HPP
 
+#include <type_traits>
 #include <utility>
-
-#include "lib.hpp"
-#include "std/variant.hpp"
+#include <variant>
 
 namespace mpark {
   namespace patterns {
@@ -26,7 +25,7 @@ namespace mpark {
     struct SumByVisit { const Pattern &pattern; };
 
     template <typename T = detail::Visit, typename Pattern>
-    auto sum(const Pattern &pattern) {
+    auto sum(const Pattern &pattern) noexcept {
       using Sum = std::conditional_t<std::is_same<T, detail::Visit>::value,
                                      SumByVisit<Pattern>,
                                      SumByType<T, Pattern>>;

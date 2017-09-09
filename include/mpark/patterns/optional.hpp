@@ -11,27 +11,25 @@
 
 #include <utility>
 
-#include "lib.hpp"
-
 namespace mpark {
   namespace patterns {
 
-    struct none_t {};
-    constexpr none_t none{};
+    struct None {};
+    constexpr None none{};
 
     template <typename Value, typename F>
-    auto matches(none_t, Value &&value, F &&f) {
+    auto matches(None, Value &&value, F &&f) {
       return value ? no_match : match_invoke(std::forward<F>(f));
     }
 
     template <typename Pattern>
-    struct some_t { const Pattern &pattern; };
+    struct Some { const Pattern &pattern; };
 
     template <typename Pattern>
-    auto some(const Pattern &pattern) { return some_t<Pattern>{pattern}; }
+    auto some(const Pattern &pattern) { return Some<Pattern>{pattern}; }
 
     template <typename Pattern, typename Value, typename F>
-    decltype(auto) matches(const some_t<Pattern> &some, Value &&value, F &&f) {
+    decltype(auto) matches(const Some<Pattern> &some, Value &&value, F &&f) {
       return value ? matches(some.pattern,
                              *std::forward<Value>(value),
                              std::forward<F>(f))

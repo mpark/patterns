@@ -20,9 +20,6 @@ namespace mpark {
 
       inline namespace cpp17 {
 
-        template <typename...>
-        using void_t = void;
-
         // <functional>
 #define RETURN(...)                                          \
   noexcept(noexcept(__VA_ARGS__)) -> decltype(__VA_ARGS__) { \
@@ -31,23 +28,23 @@ namespace mpark {
 
         template <typename F, typename... As>
         inline constexpr auto invoke(F &&f, As &&... as)
-            RETURN(std::forward<F>(f)(std::forward<As>(as)...))
+          RETURN(std::forward<F>(f)(std::forward<As>(as)...))
 
         template <typename B, typename T, typename D>
         inline constexpr auto invoke(T B::*pmv, D &&d)
-            RETURN(std::forward<D>(d).*pmv)
+          RETURN(std::forward<D>(d).*pmv)
 
         template <typename Pmv, typename Ptr>
         inline constexpr auto invoke(Pmv pmv, Ptr &&ptr)
-            RETURN((*std::forward<Ptr>(ptr)).*pmv)
+          RETURN((*std::forward<Ptr>(ptr)).*pmv)
 
         template <typename B, typename T, typename D, typename... As>
         inline constexpr auto invoke(T B::*pmf, D &&d, As &&... as)
-            RETURN((std::forward<D>(d).*pmf)(std::forward<As>(as)...))
+          RETURN((std::forward<D>(d).*pmf)(std::forward<As>(as)...))
 
         template <typename Pmf, typename Ptr, typename... As>
         inline constexpr auto invoke(Pmf pmf, Ptr &&ptr, As &&... as)
-            RETURN(((*std::forward<Ptr>(ptr)).*pmf)(std::forward<As>(as)...))
+          RETURN(((*std::forward<Ptr>(ptr)).*pmf)(std::forward<As>(as)...))
 
 #undef RETURN
 

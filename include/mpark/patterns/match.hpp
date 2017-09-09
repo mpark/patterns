@@ -9,12 +9,11 @@
 #ifndef MPARK_PATTERNS_MATCH_HPP
 #define MPARK_PATTERNS_MATCH_HPP
 
+#include <optional>
 #include <stdexcept>
 #include <tuple>
 #include <type_traits>
 #include <utility>
-
-#include <boost/optional.hpp>
 
 #include "config.hpp"
 #include "lib.hpp"
@@ -24,14 +23,17 @@ namespace mpark {
 
     namespace detail {
 
-      struct void_ {};
+      struct Void {};
 
       template <typename T>
       struct forwarder {
         constexpr forwarder(T &&value) : value_(std::forward<T>(value)) {}
 
-        forwarder(const forwarder &) noexcept = default;
-        forwarder &operator=(const forwarder &) noexcept = delete;
+        forwarder(const forwarder &) = default;
+        forwarder(forwarder &&) = default;
+
+        forwarder &operator=(const forwarder &) = delete;
+        forwarder &operator=(forwarder &&) = delete;
 
         constexpr T forward() && { return std::forward<T>(value_); }
 
@@ -41,10 +43,13 @@ namespace mpark {
 
       template <>
       struct forwarder<void> {
-        constexpr forwarder(void_) noexcept {}
+        constexpr forwarder(Void) noexcept {}
 
         forwarder(const forwarder &) noexcept = default;
+        forwarder(forwarder &&) noexcept = default;
+
         forwarder &operator=(const forwarder &) noexcept = delete;
+        forwarder &operator=(forwarder &&) noexcept = delete;
 
         constexpr void forward() && noexcept {}
       };
@@ -61,12 +66,12 @@ namespace mpark {
     constexpr no_match_t no_match{};
 
     template <typename T>
-    struct match_result : boost::optional<detail::forwarder<T>> {
-      using super = boost::optional<detail::forwarder<T>>;
+    struct match_result : std::optional<detail::forwarder<T>> {
+      using super = std::optional<detail::forwarder<T>>;
       using super::super;
 
       match_result(no_match_t) noexcept {}
-      match_result(boost::none_t) = delete;
+      match_result(std::nullopt_t) = delete;
 
       decltype(auto) get() && {
         return (*static_cast<super &&>(*this)).forward();
@@ -79,9 +84,7 @@ namespace mpark {
       struct match_invoker {
         template <typename F, typename... Args>
         match_result<R> operator()(F &&f, Args &&... args) const {
-          // return lib::invoke(std::forward<F>(f), std::forward<Args>(args)...);
-          return match_result<R>(
-              lib::invoke(std::forward<F>(f), std::forward<Args>(args)...));
+          return lib::invoke(std::forward<F>(f), std::forward<Args>(args)...);
         }
       };
 
@@ -98,8 +101,7 @@ namespace mpark {
         template <typename F, typename... Args>
         match_result<void> operator()(F &&f, Args &&... args) const {
           lib::invoke(std::forward<F>(f), std::forward<Args>(args)...);
-          // return void_{};
-          return match_result<void>(void_{});
+          return Void{};
         }
       };
 
@@ -203,7 +205,9 @@ namespace mpark {
         if (size > N + 1) {
           return false;
         }
-        constexpr bool bs[] = {is_variadic_v<Patterns>...};
+        constexpr std::array<bool, sizeof...(Patterns)> bs = {
+          { is_variadic_v<Patterns>... }
+        };
         for (std::size_t i = 0; i < size; ++i) {
           if (bs[i]) {
             return i == size - 1;
@@ -251,7 +255,7 @@ namespace mpark {
 
       template <typename Patterns, typename F>
       struct Case {
-        F &&f() && { return std::forward<F>(f_); }
+        F &&f() && noexcept { return std::forward<F>(f_); }
 
         Patterns patterns;
         F &&f_;
@@ -260,7 +264,7 @@ namespace mpark {
       template <typename... Patterns>
       struct Pattern {
         template <typename F>
-            auto operator=(F &&f) && noexcept {
+        auto operator=(F &&f) && noexcept {
           return Case<Prod<Patterns...>, F>{std::move(patterns),
                                             std::forward<F>(f)};
         }
@@ -274,15 +278,9 @@ namespace mpark {
         match_result<R> operator()(Patterns &&patterns,
                                    Values &&values,
                                    F &&f) const {
-          /*
           return matches(std::forward<Patterns>(patterns),
                          std::forward<Values>(values),
                          std::forward<F>(f));
-          */
-          auto result = matches(std::forward<Patterns>(patterns),
-                                std::forward<Values>(values),
-                                std::forward<F>(f));
-          return result ? match_result<R>(std::move(result).get()) : no_match;
         }
       };
 
@@ -303,11 +301,14 @@ namespace mpark {
           auto result = Matches<R>{}(std::move(case_).patterns,
                                      std::move(values),
                                      std::move(case_).f());
+          if (!result) {
 #ifdef MPARK_PATTERNS_EXCEPTIONS
-          return result ? std::move(result).get() : throw match_error{};
+            throw match_error{};
 #else
-          return result;
+            std::terminate();
 #endif
+          }
+          return std::move(result).get();
         }
 
         template <typename Patterns, typename F, typename... Cases>
@@ -317,11 +318,7 @@ namespace mpark {
                                      std::move(values),
                                      std::move(case_).f());
           if (result) {
-#ifdef MPARK_PATTERNS_EXCEPTIONS
             return std::move(result).get();
-#else
-            return result;
-#endif
           }
           return std::move(*this)(std::forward<Cases>(cases)...);
         }
@@ -344,12 +341,5 @@ namespace mpark {
 
   }  // namespace patterns
 }  // namespace mpark
-
-#include "anyof.hpp"
-#include "bind.hpp"
-#include "optional.hpp"
-#include "sum.hpp"
-#include "when.hpp"
-#include "wildcard.hpp"
 
 #endif  // MPARK_PATTERNS_MATCH_HPP

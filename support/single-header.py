@@ -32,6 +32,6 @@ def process(header):
   return result
 
 root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).strip()
-result = process(os.path.join(root, 'include/mpark/patterns/match.hpp'))
+result = process(os.path.join(root, 'include/mpark/patterns.hpp'))
 
 sys.stdout.write(result)

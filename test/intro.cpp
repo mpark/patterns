@@ -6,12 +6,12 @@
 // (See accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
 
-#include <mpark/patterns/match.hpp>
+#include <mpark/patterns.hpp>
 
 #include <cassert>
 #include <iostream>
-
-#include <boost/optional.hpp>
+#include <optional>
+#include <variant>
 
 #include <gtest/gtest.h>
 
@@ -89,7 +89,7 @@ namespace N {
   template <std::size_t I>
   auto &&get(const S &&s) { return std::get<I>(S::to_tuple(std::move(s))); }
 
-}  // namespace S
+}  // namespace N
 
 namespace std {
 
@@ -180,18 +180,16 @@ TEST(Patterns, Pointer) {
 }
 
 TEST(Patterns, Optional) {
-  using boost::optional;
-
-  auto test_optional = [](const optional<optional<int>> &oo) {
+  auto test_optional = [](const std::optional<std::optional<int>> &oo) {
     using namespace mpark::patterns;
     return match(oo)(pattern(some(some(_))) = [] { return 0; },
                      pattern(some(none)) = [] { return 1; },
                      pattern(none) = [] { return 2; });
   };
 
-  optional<optional<int>> oo1(42);
-  optional<optional<int>> oo2(optional<int>{});
-  optional<optional<int>> oo3;
+  std::optional<std::optional<int>> oo1(42);
+  std::optional<std::optional<int>> oo2(std::optional<int>{});
+  std::optional<std::optional<int>> oo3;
 
   EXPECT_EQ(0, test_optional(oo1));
   EXPECT_EQ(1, test_optional(oo2));
@@ -238,14 +236,18 @@ TEST(Patterns, Visit) {
   ::visit(Visitor{}, x, y);
 }
 
-TEST(Patterns, ExplicitReturnType) {
-  boost::optional<int> o(42);
+//void f(int) {}
 
-  using namespace mpark::patterns;
-  auto x = match<int>(o)(
-      pattern(some(arg)) = [](int v) { return static_cast<std::size_t>(v); },
-      pattern(none) = [] { return 'A'; });
-
-  static_assert(std::is_same<decltype(x), int>::value, "");
-  EXPECT_EQ(42, x);
-}
+// TEST(Patterns, ExplicitReturnType) {
+//   // boost::optional<int> o(42);
+//
+//   // using namespace mpark::patterns;
+//   // auto x = match<int>(o)(
+//   //     pattern(some(arg)) = [](int v) { return static_cast<std::size_t>(v); },
+//   //     pattern(none) = [] { return 'A'; });
+//
+//   // f(42UL);
+//
+//   // static_assert(std::is_same<decltype(x), int>::value, "");
+//   // EXPECT_EQ(42, x);
+// }

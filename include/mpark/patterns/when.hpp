@@ -9,16 +9,24 @@
 #ifndef MPARK_PATTERNS_WHEN_HPP
 #define MPARK_PATTERNS_WHEN_HPP
 
+#include <utility>
+
 namespace mpark {
   namespace patterns {
 
     struct When { bool condition; };
 
+        // <functional>
+#define RETURN(...)                                          \
+  noexcept(noexcept(__VA_ARGS__)) -> decltype(__VA_ARGS__) { \
+    return __VA_ARGS__;                                      \
+  }
+
     template <typename F>
     auto operator>>=(When when, F &&f)
-        -> decltype(match_invoke(std::forward<F>(f))) {
-      return when.condition ? match_invoke(std::forward<F>(f)) : no_match;
-    }
+      RETURN(when.condition ? match_invoke(std::forward<F>(f)) : no_match)
+
+#undef RETURN
 
 #define WHEN(condition) return When{condition} >>= [&]
 
