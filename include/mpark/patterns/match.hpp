@@ -84,7 +84,7 @@ namespace mpark {
       struct match_invoker {
         template <typename F, typename... Args>
         match_result<R> operator()(F &&f, Args &&... args) const {
-          return lib::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+          return std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
         }
       };
 
@@ -92,7 +92,7 @@ namespace mpark {
       struct match_invoker<match_result<R>> {
         template <typename F, typename... Args>
         match_result<R> operator()(F &&f, Args &&... args) const {
-          return lib::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+          return std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
         }
       };
 
@@ -100,7 +100,7 @@ namespace mpark {
       struct match_invoker<void> {
         template <typename F, typename... Args>
         match_result<void> operator()(F &&f, Args &&... args) const {
-          lib::invoke(std::forward<F>(f), std::forward<Args>(args)...);
+          std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
           return Void{};
         }
       };
@@ -109,8 +109,11 @@ namespace mpark {
 
     template <typename F, typename... Args>
     auto match_invoke(F &&f, Args &&... args) {
-      using R = decltype(
-          lib::invoke(std::forward<F>(f), std::forward<Args>(args)...));
+      static_assert(lib::is_invocable<F, Args...>::value,
+                    "The given handler `F` is not invocable with `Args...`. "
+                    "Inspect the error messages below to determine what "
+                    "`F` and `Args...` are.");
+      using R = lib::invoke_result_t<F, Args...>;
       return detail::match_invoker<R>{}(std::forward<F>(f),
                                         std::forward<Args>(args)...);
     }
