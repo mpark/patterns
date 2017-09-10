@@ -12,7 +12,7 @@
 
 #include <gtest/gtest.h>
 
-TEST(Patterns, CArray) {
+TEST(Patterns, Array) {
   std::array<int, 3> x = {{1, 2, 3}};
 
   using namespace mpark::patterns;

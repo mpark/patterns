@@ -27,6 +27,7 @@ endif()
 
 set(MPARK_TESTS
   array
+  balance
   calc
   intro
   regex)
