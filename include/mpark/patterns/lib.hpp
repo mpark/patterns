@@ -20,33 +20,55 @@ namespace mpark {
 
       inline namespace cpp17 {
 
-        // <functional>
-#define RETURN(...)                                          \
-  noexcept(noexcept(__VA_ARGS__)) -> decltype(__VA_ARGS__) { \
-    return __VA_ARGS__;                                      \
-  }
+        namespace detail {
 
-        template <typename F, typename... As>
-        inline constexpr auto invoke(F &&f, As &&... as)
-          RETURN(std::forward<F>(f)(std::forward<As>(as)...))
+          template <typename Void, typename, typename...>
+          struct invoke_result {};
 
-        template <typename B, typename T, typename D>
-        inline constexpr auto invoke(T B::*pmv, D &&d)
-          RETURN(std::forward<D>(d).*pmv)
+          template <typename F, typename... Args>
+          struct invoke_result<
+              std::void_t<decltype(
+                  std::invoke(std::declval<F>(), std::declval<Args>()...))>,
+              F,
+              Args...>
+              : identity<decltype(std::invoke(std::declval<F>(),
+                                              std::declval<Args>()...))> {};
 
-        template <typename Pmv, typename Ptr>
-        inline constexpr auto invoke(Pmv pmv, Ptr &&ptr)
-          RETURN((*std::forward<Ptr>(ptr)).*pmv)
+        }  // namespace detail
 
-        template <typename B, typename T, typename D, typename... As>
-        inline constexpr auto invoke(T B::*pmf, D &&d, As &&... as)
-          RETURN((std::forward<D>(d).*pmf)(std::forward<As>(as)...))
+        template <typename F, typename... Args>
+        using invoke_result = detail::invoke_result<void, F, Args...>;
 
-        template <typename Pmf, typename Ptr, typename... As>
-        inline constexpr auto invoke(Pmf pmf, Ptr &&ptr, As &&... as)
-          RETURN(((*std::forward<Ptr>(ptr)).*pmf)(std::forward<As>(as)...))
+        template <typename F, typename... Args>
+        using invoke_result_t = typename invoke_result<F, Args...>::type;
 
-#undef RETURN
+        namespace detail {
+
+          template <typename Void, typename, typename...>
+          struct is_invocable : std::false_type {};
+
+          template <typename F, typename... Args>
+          struct is_invocable<std::void_t<invoke_result_t<F, Args...>>,
+                              F,
+                              Args...> : std::true_type {};
+
+          template <typename Void, typename, typename, typename...>
+          struct is_invocable_r : std::false_type {};
+
+          template <typename R, typename F, typename... Args>
+          struct is_invocable_r<std::void_t<invoke_result_t<F, Args...>>,
+                                R,
+                                F,
+                                Args...>
+              : std::is_convertible<invoke_result_t<F, Args...>, R> {};
+
+        }  // namespace detail
+
+        template <typename F, typename... Args>
+        using is_invocable = detail::is_invocable<void, F, Args...>;
+
+        template <typename R, typename F, typename... Args>
+        using is_invocable_r = detail::is_invocable_r<void, R, F, Args...>;
 
       }  // namespace cpp17
 
