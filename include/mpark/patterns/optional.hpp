@@ -29,7 +29,7 @@ namespace mpark {
     auto some(const Pattern &pattern) { return Some<Pattern>{pattern}; }
 
     template <typename Pattern, typename Value, typename F>
-    decltype(auto) matches(const Some<Pattern> &some, Value &&value, F &&f) {
+    auto matches(const Some<Pattern> &some, Value &&value, F &&f) {
       return value ? matches(some.pattern,
                              *std::forward<Value>(value),
                              std::forward<F>(f))
