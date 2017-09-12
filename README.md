@@ -175,13 +175,13 @@ The `sum` pattern matches values of a sum type,
 #### Requirements
 
 The type `T` satisfies `Sum<U>` if given a variable `x` of type `T`,
-  - If `mpark::variant_size<T>` is a complete type, `x.get<U>()` is valid.
-    Otherwise, `get<U>(x)` is valid.
-  - `mpark::variant_size<T>::value` is a well-formed integer constant expression.
+  - If `std::variant_size<T>` is a complete type, `x.get_if<U>()` and `x.get<U>()`
+    are valid. Otherwise, `get_if<U>(&x)` and `get<U>(x)` are valid.
+  - `std::variant_size<T>::value` is a well-formed integer constant expression.
 
 The type `T` satisfies `Sum` if given a variable `x` of type `T`,
-  - If `mpark::variant_size<T>` is a complete type, `visit([](auto&&) {}, x)` is valid.
-  - `mpark::variant_size<T>::value` is a well-formed integer constant expression.
+  - If `std::variant_size<T>` is a complete type, `visit([](auto&&) {}, x)` is valid.
+  - `std::variant_size<T>::value` is a well-formed integer constant expression.
 
 #### Syntax
 
@@ -192,7 +192,7 @@ The type `T` satisfies `Sum` if given a variable `x` of type `T`,
 
 ```cpp
 using str = std::string;
-mpark::variant<int, str> v = 42;
+std::variant<int, str> v = 42;
 
 using namespace mpark::patterns;
 match(v)(pattern(sum<int>(_)) = [] { std::cout << "int\n"; },
@@ -202,7 +202,7 @@ match(v)(pattern(sum<int>(_)) = [] { std::cout << "int\n"; },
 
 ```cpp
 using str = std::string;
-mpark::variant<int, str> v = "hello world!";
+std::variant<int, str> v = "hello world!";
 
 struct {
   void operator()(int n) const { std::cout << "int: " << n << '\n'; }
@@ -241,7 +241,7 @@ match(p)(pattern(some(_)) = [] { std::cout << "some\n"; },
 ```
 
 ```cpp
-boost::optional<int> o = 42;
+std::optional<int> o = 42;
 
 using namespace mpark::patterns;
 match(o)(
@@ -345,7 +345,7 @@ satisfy some predicate.
 
 #### Syntax
 
-  - `WHEN(<condition>);`
+  - `WHEN(<condition>) { /* ... */ };`
 
 #### Examples
 
