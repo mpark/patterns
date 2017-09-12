@@ -3,10 +3,17 @@
 // Copyright Michael Park, 2017
 //
 // Distributed under the Boost Software License, Version 1.0.
-// (See accompanying file LICENSE_1_0.txt or copy at
-// http://www.boost.org/LICENSE_1_0.txt)
+// (See accompanying file LICENSE.md or copy at http://boost.org/LICENSE_1_0.txt)
 
 #include <mpark/patterns.hpp>
+
+#include <regex>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -26,7 +33,7 @@ bool operator==(const Token &lhs, const Token &rhs) {
 
 bool operator!=(const Token &lhs, const Token &rhs) { return !(lhs == rhs); }
 
-TEST(Patterns, NoSubMatches_String) {
+TEST(Regex, NoSubMatches_String) {
   auto lex = [](std::string_view sv) {
     using namespace mpark::patterns;
     return match(sv)(
@@ -55,7 +62,7 @@ TEST(Patterns, NoSubMatches_String) {
   EXPECT_EQ(lex("-"), Token(Token::OP, "-"));
 }
 
-TEST(Patterns, NoSubMatches_Stream) {
+TEST(Regex, NoSubMatches_Stream) {
   std::regex id(R"~([_a-zA-Z]\w*)~");
   std::regex num(R"~(-?\d+)~");
   std::regex op(R"~([*|/|+|-])~");
@@ -90,7 +97,7 @@ TEST(Patterns, NoSubMatches_Stream) {
   EXPECT_EQ(expected, actual);
 }
 
-TEST(Patterns, SubMatches_String) {
+TEST(Regex, SubMatches_String) {
   std::regex hex(R"~(#?([a-f0-9]{6}|[a-f0-9]{3}))~");
   std::regex email(
       R"~(([a-z0-9_\.-]+)@([\da-z\.-]+)\.([a-z\.]{2,6}))~");
@@ -113,7 +120,7 @@ TEST(Patterns, SubMatches_String) {
             test("mcypark@gmail.com"));
 }
 
-TEST(Patterns, Captures_Stream) {
+TEST(Regex, Captures_Stream) {
   std::regex id(R"~(^[_a-zA-Z]\w*)~");
   std::regex num(R"~(^-?\d+)~");
   std::regex op(R"~(^[*|/|+|-])~");

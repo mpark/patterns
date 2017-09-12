@@ -3,27 +3,22 @@
 // Copyright Michael Park, 2017
 //
 // Distributed under the Boost Software License, Version 1.0.
-// (See accompanying file LICENSE_1_0.txt or copy at
-// http://www.boost.org/LICENSE_1_0.txt)
+// (See accompanying file LICENSE.md or copy at http://boost.org/LICENSE_1_0.txt)
 
 #ifndef MPARK_PATTERNS_WILDCARD_HPP
 #define MPARK_PATTERNS_WILDCARD_HPP
 
 #include <utility>
 
-namespace mpark {
-  namespace patterns {
+namespace mpark::patterns {
 
-    struct Wildcard {};
+  inline constexpr struct Wildcard {} _{};
 
-    template <typename Value, typename F>
-    auto matches(Wildcard, Value &&, F &&f) {
-      return match_invoke(std::forward<F>(f));
-    }
+  template <typename Value, typename F>
+  auto matches(Wildcard, Value &&, F &&f) {
+    return match_invoke(std::forward<F>(f));
+  }
 
-    constexpr Wildcard _{};
-
-  }  // namespace patterns
-}  // namespace mpark
+}  // namespace mpark::patterns
 
 #endif  // MPARK_PATTERNS_WILDCARD_HPP

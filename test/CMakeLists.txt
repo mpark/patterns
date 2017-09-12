@@ -3,8 +3,7 @@
 # Copyright Michael Park, 2017
 #
 # Distributed under the Boost Software License, Version 1.0.
-# (See accompanying file LICENSE_1_0.txt or copy at
-# http://www.boost.org/LICENSE_1_0.txt)
+# (See accompanying file LICENSE.md or copy at http://boost.org/LICENSE_1_0.txt)
 
 cmake_minimum_required(VERSION 3.6.3)
 
@@ -26,11 +25,16 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang" OR
 endif()
 
 set(MPARK_TESTS
+  aggregate
   array
   balance
   calc
   intro
-  regex)
+  optional
+  prod
+  regex
+  sum
+  variadic)
 
 foreach(test ${MPARK_TESTS})
   add_executable(${test} ${test}.cpp)

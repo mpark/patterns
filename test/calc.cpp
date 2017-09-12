@@ -3,132 +3,161 @@
 // Copyright Michael Park, 2017
 //
 // Distributed under the Boost Software License, Version 1.0.
-// (See accompanying file LICENSE_1_0.txt or copy at
-// http://www.boost.org/LICENSE_1_0.txt)
+// (See accompanying file LICENSE.md or copy at http://boost.org/LICENSE_1_0.txt)
 
 #include <mpark/patterns.hpp>
 
+#include <cstddef>
+#include <memory>
+#include <ostream>
+#include <tuple>
+#include <type_traits>
+#include <utility>
+#include <variant>
+
 #include <gtest/gtest.h>
 
-struct Expr;
+namespace memory {
 
-struct Unary {
-  template <typename Self>
-  static auto to_tuple(Self &&self) {
-    return std::forward_as_tuple(*std::forward<Self>(self).expr_);
+  template <typename T>
+  struct part_ptr : std::unique_ptr<T> {
+    using super = std::unique_ptr<T>;
+    using super::super;
+
+    T &operator*() & { return *this->get(); }
+    const T &operator*() const & { return *this->get(); }
+    T &&operator*() && { return std::move(*this->get()); }
+    const T &&operator*() const && { return std::move(*this->get()); }
+  };
+
+  template <typename T, typename... Args>
+  auto make_part(Args&&... args) {
+    return part_ptr<T>(new T(std::forward<Args>(args)...));
   }
 
-  explicit Unary(Expr &&expr)
-      : expr_(std::make_unique<Expr>(std::move(expr))) {}
+}  // namespace memory
 
-  template <std::size_t I>
-  auto &&get() & { return std::get<I>(to_tuple(*this)); }
+namespace calc {
 
-  template <std::size_t I>
-  auto &&get() const & { return std::get<I>(to_tuple(*this)); }
+  class Expr;
 
-  template <std::size_t I>
-  auto &&get() && { return std::get<I>(to_tuple(std::move(*this))); }
+  class Unary {
+    public:
+    explicit Unary(Expr &&expr);
 
-  template <std::size_t I>
-  auto &&get() const && { return std::get<I>(to_tuple(std::move(*this))); }
+    private:
+    memory::part_ptr<Expr> expr_;
 
-  std::unique_ptr<Expr> expr_;
-};
+    template <std::size_t I,
+              typename FwdUnary,
+              std::enable_if_t<std::is_base_of_v<Unary, std::decay_t<FwdUnary>>,
+                               int> = 0>
+    friend auto &&get(FwdUnary &&unary) noexcept {
+      if constexpr (I == 0) return *std::forward<FwdUnary>(unary).expr_;
+    }
+  };
 
-struct Binary {
-  template <typename Self>
-  static auto to_tuple(Self &&self) {
-    return std::forward_as_tuple(*std::forward<Self>(self).lhs_,
-                                 *std::forward<Self>(self).rhs_);
-  }
+  class Binary {
+    public:
+    explicit Binary(Expr &&lhs, Expr &&rhs);
 
-  explicit Binary(Expr &&lhs, Expr &&rhs)
-      : lhs_(std::make_unique<Expr>(std::move(lhs))),
-        rhs_(std::make_unique<Expr>(std::move(rhs))) {}
+    private:
+    memory::part_ptr<Expr> lhs_, rhs_;
 
-  template <std::size_t I>
-  auto &&get() & { return std::get<I>(to_tuple(*this)); }
+    template <
+        std::size_t I,
+        typename FwdBinary,
+        std::enable_if_t<std::is_base_of_v<Binary, std::decay_t<FwdBinary>>,
+                         int> = 0>
+    friend auto &&get(FwdBinary &&binary) noexcept {
+      if constexpr (I == 0) return *std::forward<FwdBinary>(binary).lhs_;
+      if constexpr (I == 1) return *std::forward<FwdBinary>(binary).rhs_;
+    }
+  };
 
-  template <std::size_t I>
-  auto &&get() const & { return std::get<I>(to_tuple(*this)); }
+  class Func : public Unary { public: using Unary::Unary; };
+  class Plus : public Binary { public: using Binary::Binary; };
+  class Mult : public Binary { public: using Binary::Binary; };
 
-  template <std::size_t I>
-  auto &&get() && { return std::get<I>(to_tuple(std::move(*this))); }
+  class Expr : public std::variant<int, Plus, Mult, Func> {
+    public:
+    using variant::variant;
+  };
 
-  template <std::size_t I>
-  auto &&get() const && { return std::get<I>(to_tuple(std::move(*this))); }
+  Unary::Unary(Expr &&expr) : expr_(memory::make_part<Expr>(std::move(expr))) {}
 
-  std::unique_ptr<Expr> lhs_, rhs_;
-};
+  Binary::Binary(Expr &&lhs, Expr &&rhs)
+      : lhs_(memory::make_part<Expr>(std::move(lhs))),
+        rhs_(memory::make_part<Expr>(std::move(rhs))) {}
 
-struct Plus : Binary { using Binary::Binary; };
-struct Mult : Binary { using Binary::Binary; };
-struct Func : Unary { using Unary::Unary; };
+}  // namespace calc
 
 namespace std {
 
-  template <> class tuple_size<Unary> : public integral_constant<size_t, 1> {};
-  template <> class tuple_size<Binary> : public integral_constant<size_t, 2> {};
-  template <> class tuple_size<Plus> : public tuple_size<Binary> {};
-  template <> class tuple_size<Mult> : public tuple_size<Binary> {};
-  template <> class tuple_size<Func> : public tuple_size<Unary> {};
+  template <>
+  class tuple_size<calc::Unary> : public integral_constant<size_t, 1> {};
+
+  template <>
+  class tuple_size<calc::Binary> : public integral_constant<size_t, 2> {};
+
+  template <> class tuple_size<calc::Func> : public tuple_size<calc::Unary> {};
+  template <> class tuple_size<calc::Plus> : public tuple_size<calc::Binary> {};
+  template <> class tuple_size<calc::Mult> : public tuple_size<calc::Binary> {};
 
 }  // namespace std
 
-struct Expr : std::variant<int, Plus, Mult, Func> { using variant::variant; };
+namespace calc {
 
-std::ostream &operator<<(std::ostream &strm, const Expr &expr) {
-  using namespace mpark::patterns;
-  match(expr)(
-      pattern(sum<int>(arg)) = [&](auto x) { strm << x; },
-      pattern(sum<Plus>(prod(arg, arg))) =
-          [&](const auto &lhs, const auto &rhs) {
-            strm << "(+ " << lhs << ' ' << rhs << ')';
-          },
-      pattern(sum<Mult>(prod(arg, arg))) =
-          [&](const auto &lhs, const auto &rhs) {
-            strm << "(* " << lhs << ' ' << rhs << ')';
-          },
-      pattern(sum<Func>(prod(arg))) =
-          [&](const auto &body) { strm << "(fn [] " << body << ')'; });
-  return strm;
+  std::ostream &operator<<(std::ostream &strm, const Expr &expr) {
+    using namespace mpark::patterns;
+    placeholder lhs, rhs;
+    match(expr)(
+        pattern(sum<int>(arg)) = [&](auto x) { strm << x; },
+        pattern(sum<Plus>(prod(lhs, rhs))) = [&](auto &&lhs, auto &&rhs) {
+          strm << "(+ " << lhs << ' ' << rhs << ')';
+        },
+        pattern(sum<Mult>(prod(lhs, rhs))) = [&](auto &&lhs, auto &&rhs) {
+          strm << "(* " << lhs << ' ' << rhs << ')';
+        },
+        pattern(sum<Func>(prod(arg))) = [&](auto &&body) {
+          strm << "(fn [] " << body << ')';
+        });
+    return strm;
+  }
+
+  int eval(const Expr &expr) {
+    using namespace mpark::patterns;
+    placeholder lhs, rhs;
+    return match(expr)(
+        pattern(sum<int>(arg)) = [](auto x) { return x; },
+        pattern(sum<Plus>(prod(lhs, rhs))) = [](auto &&lhs, auto &&rhs) {
+          return eval(lhs) + eval(rhs);
+        },
+        pattern(sum<Mult>(prod(lhs, rhs))) = [](auto &&lhs, auto &&rhs) {
+          return eval(lhs) * eval(rhs);
+        },
+        pattern(sum<Func>(prod(arg))) = [](auto &&body) { return eval(body); });
+  }
+
+}  // namespace calc
+
+TEST(Calc, Int) {
+  using namespace calc;
+  Expr expr = 101;
+  EXPECT_EQ("101", (std::ostringstream{} << expr).str());
+  EXPECT_EQ(101, eval(expr));
 }
 
-int eval(const Expr &expr) {
-  using namespace mpark::patterns;
-  return match(expr)(
-      pattern(sum<int>(arg)) = [](auto x) { return x; },
-      pattern(sum<Plus>(prod(arg, arg))) = [](
-          const auto &lhs, const auto &rhs) { return eval(lhs) + eval(rhs); },
-      pattern(sum<Mult>(prod(arg, arg))) = [](
-          const auto &lhs, const auto &rhs) { return eval(lhs) * eval(rhs); },
-      pattern(sum<Func>(prod(arg))) = [](
-          const auto &body) { return eval(body); });
+TEST(Calc, MultPlus) {
+  using namespace calc;
+  Expr expr = Mult(Plus(Expr(101), Expr(202)), 303);
+  EXPECT_EQ("(* (+ 101 202) 303)", (std::ostringstream{} << expr).str());
+  EXPECT_EQ(91809, eval(expr));
 }
 
-TEST(Pattern, Calc) {
-  auto to_string = [](const Expr &expr) {
-    std::ostringstream strm;
-    strm << expr;
-    return strm.str();
-  };
-
-  {
-    Expr expr = 101;
-    EXPECT_EQ("101", to_string(expr));
-    EXPECT_EQ(101, eval(expr));
-  }
-
-  {
-    Expr expr = Mult(Plus(Expr(101), Expr(202)), 303);
-    EXPECT_EQ("(* (+ 101 202) 303)", to_string(expr));
-    EXPECT_EQ(91809, eval(expr));
-  }
-
-  {
-    Expr expr = Func(Plus(Expr(101), Expr(202)));
-    EXPECT_EQ("(fn [] (+ 101 202))", to_string(expr));
-    EXPECT_EQ(303, eval(expr));
-  }
+TEST(Calc, FuncPlus) {
+  using namespace calc;
+  Expr expr = Func(Plus(Expr(101), Expr(202)));
+  EXPECT_EQ("(fn [] (+ 101 202))", (std::ostringstream{} << expr).str());
+  EXPECT_EQ(303, eval(expr));
 }

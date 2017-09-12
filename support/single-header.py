@@ -1,4 +1,4 @@
-# MPark.Variant
+# MPark.Patterns
 #
 # Copyright Michael Park, 2017
 #
@@ -10,7 +10,7 @@ import re
 import subprocess
 import sys
 
-# Prints a single header version of `include/mpark/patterns/match.hpp` to stdout.
+# Prints a single header version of `include/mpark/patterns.hpp` to stdout.
 
 processed = []
 
