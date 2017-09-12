@@ -1,6 +1,6 @@
 # MPark.Patterns
 
-> Pattern Matching in __C++14__.
+> Pattern Matching in __C++__.
 
 [![stability][badge.stability]][stability]
 [![license][badge.license]][license]

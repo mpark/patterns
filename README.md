@@ -1,6 +1,6 @@
 # MPark.Patterns
 
-> Pattern Matching in __C++14__.
+> Pattern Matching in __C++__.
 
 [![stability][badge.stability]][stability]
 [![license][badge.license]][license]
@@ -16,7 +16,7 @@
 
 ## Introduction
 
-__MPark.Patterns__ is an experimental pattern matching library for __C++14__.
+__MPark.Patterns__ is an experimental pattern matching library for __C++17__.
 
 It determines whether a given value __matches__ a __pattern__ and, if it does,
 __binds__ the desired portions of the value to a __handler__.
@@ -30,7 +30,7 @@ Haskell, OCaml, Rust, Scala, and Swift.
 #include <iostream>
 #include <sstream>
 
-#include <mpark/match.hpp>
+#include <mpark/patterns.hpp>
 
 int eval(const std::string& equation) {
   std::istringstream strm(equation);
@@ -41,11 +41,12 @@ int eval(const std::string& equation) {
   strm >> lhs >> op >> rhs;
 
   using namespace mpark::patterns;
+  placeholder lhs, rhs;
   return match(lhs, op, rhs)(
-      pattern(arg, "plus", arg) = std::plus<>{},
-      pattern(arg, "minus", arg) = std::minus<>{},
-      pattern(arg, "mult", arg) = std::multiplies<>{},
-      pattern(arg, "div", arg) = std::divides<>{});
+      pattern(lhs, "plus" , rhs) = std::plus<>{},
+      pattern(lhs, "minus", rhs) = std::minus<>{},
+      pattern(lhs, "mult" , rhs) = std::multiplies<>{},
+      pattern(lhs, "div"  , rhs) = std::divides<>{});
 }
 
 int main() {
@@ -142,8 +143,9 @@ const auto& [x, y, z] = t;
 
 // C++14 MPark.Patterns:
 using namespace mpark::patterns;
+placeholder x, y, z;
 match(t)(
-    pattern(prod(arg, arg, arg)) = [](const auto& x, const auto& y, const auto& z) {
+    pattern(prod(x, y, z)) = [](const auto& x, const auto& y, const auto& z) {
       // ...
     });
 ```
@@ -343,16 +345,23 @@ satisfy some predicate.
 
 #### Syntax
 
-  - `when(<condition>);`
+  - `WHEN(<condition>);`
 
 #### Examples
 
 ```cpp
 using namespace mpark::patterns;
+placeholder lhs, rhs;
 match(101, 202)(
-    pattern(arg, arg) = [](auto&& lhs, auto&& rhs) { when(lhs > rhs); std::cout << "GT\n"; },
-    pattern(arg, arg) = [](auto&& lhs, auto&& rhs) { when(lhs < rhs); std::cout << "LT\n"; },
-    pattern(arg, arg) = [](auto&& lhs, auto&& rhs) { when(lhs == rhs); std::cout << "EQ\n"; });
+    pattern(lhs, rhs) = [](auto&& lhs, auto&& rhs) {
+      WHEN(lhs > rhs) { std::cout << "GT\n"; };
+    },
+    pattern(lhs, rhs) = [](auto&& lhs, auto&& rhs) {
+      WHEN(lhs < rhs) { std::cout << "LT\n"; };
+    },
+    pattern(lhs, rhs) = [](auto&& lhs, auto&& rhs) {
+      WHEN(lhs == rhs) { std::cout << "EQ\n"; };
+    });
 // prints: "LT".
 ```
 
