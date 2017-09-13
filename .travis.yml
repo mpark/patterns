@@ -76,18 +76,6 @@ install:
       export LDFLAGS="${LDFLAGS} -L${DEPS}/lib -lc++ -lc++abi"
       export LD_LIBRARY_PATH="${DEPS}/lib:${LD_LIBRARY_PATH}"
     fi
-  # Install newer boost.
-  - |
-    if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
-      brew update
-      brew upgrade boost
-    elif [ "${TRAVIS_OS_NAME}" = "linux" ]; then
-      mkdir -p ${DEPS}/include
-
-      BOOST_URL="https://dl.bintray.com/boostorg/release/1.65.0/source/boost_1_65_0.tar.gz"
-      travis_retry wget -O - ${BOOST_URL} | tar --strip-components=1 -xz -C ${DEPS}/include boost_1_65_0/boost
-      export CXXFLAGS="${CXXFLAGS} -isystem ${DEPS}/include"
-    fi
 
 script:
   - BUILDS=(Debug Release)
