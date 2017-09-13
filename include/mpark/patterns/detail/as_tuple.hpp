@@ -22,10 +22,8 @@ namespace mpark::patterns::detail {
     constexpr operator T &() const noexcept;
   };
 
-#ifndef _MSC_VER
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-#endif
   template <typename T,
             std::size_t... Is,
             typename = decltype(T{(Is, fill{})...})>
@@ -33,9 +31,7 @@ namespace mpark::patterns::detail {
                                          lib::priority<0>) {
     return true;
   }
-#ifndef _MSC_VER
 #pragma GCC diagnostic pop
-#endif
 
   template <typename T, std::size_t... Is>
   constexpr bool is_n_constructible_impl(std::index_sequence<Is...>,
@@ -74,7 +70,7 @@ namespace mpark::patterns::detail {
   };
 
   template <typename T>
-  /* inline */ constexpr std::size_t aggregate_size_v =
+  inline constexpr std::size_t aggregate_size_v =
       *AggregateSize<T>::template impl<0, sizeof(T) + 1>();
 
   template <typename T>

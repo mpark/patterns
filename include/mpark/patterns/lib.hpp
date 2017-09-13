@@ -67,13 +67,13 @@ namespace mpark::patterns::lib {
     using is_invocable = detail::is_invocable<void, F, Args...>;
 
     template <typename F, typename... Args>
-    /* inline */ constexpr bool is_invocable_v = is_invocable<F, Args...>::value;
+    inline constexpr bool is_invocable_v = is_invocable<F, Args...>::value;
 
     template <typename R, typename F, typename... Args>
     using is_invocable_r = detail::is_invocable_r<void, R, F, Args...>;
 
     template <typename R, typename F, typename... Args>
-    /* inline */ constexpr bool is_invocable_r_v = is_invocable_r<R, F, Args...>::value;
+    inline constexpr bool is_invocable_r_v = is_invocable_r<R, F, Args...>::value;
 
   }  // namespace cpp17
 

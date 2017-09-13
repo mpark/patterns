@@ -31,7 +31,7 @@ namespace mpark::patterns {
     }
   };
 
-  /* inline */ constexpr struct SubMatches {} sub_matches{};
+  inline constexpr struct SubMatches {} sub_matches{};
 
   /*
   template <typename... Patterns>
@@ -101,7 +101,7 @@ namespace mpark::patterns {
     }
   };
 
-  /* inline */ constexpr Re re{};
+  inline constexpr Re re{};
 
   template <typename RegexF, typename F>
   auto matches(const Regex<RegexF> &r, const char *s, F &&f) {

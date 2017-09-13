@@ -12,7 +12,7 @@
 
 namespace mpark::patterns {
 
-  /* inline */ constexpr struct Wildcard {} _{};
+  inline constexpr struct Wildcard {} _{};
 
   template <typename Value, typename F>
   auto matches(Wildcard, Value &&, F &&f) {

@@ -29,7 +29,7 @@ namespace mpark::patterns {
   };
 #endif
 
-  /* inline */ constexpr struct no_match_t {} no_match{};
+  inline constexpr struct no_match_t {} no_match{};
 
   template <typename T>
   struct match_result : std::optional<detail::Forwarder<T>> {
@@ -176,10 +176,10 @@ namespace mpark::patterns {
     }
 
     template <typename Pattern>
-    /* inline */ constexpr bool is_variadic_v = false;
+    inline constexpr bool is_variadic_v = false;
 
     template <typename Pattern>
-    /* inline */ constexpr bool is_variadic_v<Variadic<Pattern>> = true;
+    inline constexpr bool is_variadic_v<Variadic<Pattern>> = true;
 
     template <std::size_t N, typename... Patterns>
     constexpr bool matches_check() noexcept {
@@ -227,7 +227,7 @@ namespace mpark::patterns {
                       lib::priority<0>) {
       constexpr std::size_t size =
           std::extent_v<std::remove_reference_t<Array>>;
-      static_assert(matches_check<size, Patterns...>(), "");
+      static_assert(matches_check<size, Patterns...>());
       using Is = std::make_index_sequence<size>;
       return matches_recur(canonicalize(prod, Is{}),
                            std::forward<Array>(array),
@@ -244,7 +244,7 @@ namespace mpark::patterns {
                       F &&f,
                       lib::priority<1>) {
       constexpr std::size_t size = std::tuple_size_v<std::decay_t<TupleLike>>;
-      static_assert(matches_check<size, Patterns...>(), "");
+      static_assert(matches_check<size, Patterns...>());
       using Is = std::make_index_sequence<size>;
       return matches_recur(canonicalize(prod, Is{}),
                            std::forward<TupleLike>(tuple_like),
@@ -258,10 +258,8 @@ namespace mpark::patterns {
                       F &&f,
                       lib::priority<2>) {
       using Decayed = std::decay_t<Aggregate>;
-#ifdef MPARK_PATTERNS_IS_AGGREGATE
-      static_assert(std::is_aggregate_v<Decayed>, "");
-#endif
-      static_assert(std::is_copy_constructible_v<Decayed>, "");
+      static_assert(std::is_aggregate_v<Decayed>);
+      static_assert(std::is_copy_constructible_v<Decayed>);
       return matches(prod,
                      as_tuple(std::forward<Aggregate>(aggregate)),
                      std::forward<F>(f));

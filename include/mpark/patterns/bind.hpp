@@ -29,7 +29,7 @@ namespace mpark::patterns {
 
   using placeholder = Arg<Wildcard>;
 
-  /* inline */ constexpr Arg<Wildcard> arg{};
+  inline constexpr Arg<Wildcard> arg{};
 
   template <typename Pattern, typename Value, typename F>
   auto matches(const Arg<Pattern> &arg_, Value &&value, F &&f) {
