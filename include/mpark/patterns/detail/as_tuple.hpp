@@ -49,33 +49,36 @@ namespace mpark::patterns::detail {
                                       lib::priority<>{});
   }
 
-  template <typename T, std::size_t B, std::size_t E>
-  constexpr std::optional<std::size_t> aggregate_size_impl() {
-    constexpr std::size_t M = B + ((E - B) / 2);
-    constexpr bool is_mid_constructible = is_n_constructible<T, M>();
-    if constexpr (B == M) {
-      if constexpr (is_mid_constructible) {
-        return M;
-      } else {
-        return std::nullopt;
+  template <typename T>
+  struct AggregateSize {
+    template <std::size_t B, std::size_t E>
+    static constexpr std::optional<std::size_t> impl() {
+      constexpr std::size_t M = B + ((E - B) / 2);
+      constexpr bool is_mid_constructible = is_n_constructible<T, M>();
+      if constexpr (B == M) {
+        if constexpr (is_mid_constructible) {
+          return M;
+        } else {
+          return std::nullopt;
+        }
+      } else if constexpr (is_mid_constructible) {
+        // We recursve into `[M, E)` rather than `[M + 1, E)` since `M` could be
+        // the answer.
+        return impl<M, E>();
+      } else if constexpr (constexpr auto lhs = impl<B, M>()) {
+        return lhs;
+      } else if constexpr (constexpr auto rhs = impl<M, E>()) {
+        return rhs;
       }
-    } else if constexpr (is_mid_constructible) {
-      // We recursve into `[M, E)` rather than `[M + 1, E)` since `M` could be
-      // the answer.
-      return aggregate_size_impl<T, M, E>();
-    } else if constexpr (constexpr auto lhs = aggregate_size_impl<T, B, M>()) {
-      return lhs;
-    } else if constexpr (constexpr auto rhs = aggregate_size_impl<T, M, E>()) {
-      return rhs;
     }
-  }
+  };
 
   template <typename T>
-  struct aggregate_size
-      : lib::size_constant<*aggregate_size_impl<T, 0, sizeof(T) + 1>()> {};
+  /* inline */ constexpr std::size_t aggregate_size_v =
+      *AggregateSize<T>::template impl<0, sizeof(T) + 1>();
 
   template <typename T>
-  /* inline */ constexpr std::size_t aggregate_size_v = aggregate_size<T>::value;
+  struct aggregate_size : lib::size_constant<aggregate_size_v<T>> {};
 
   template <typename Aggregate>
   auto as_tuple_impl(Aggregate &&, lib::size_constant<0>) {
