@@ -27,7 +27,7 @@ This directory contains the tests for __MPark.Patterns__.
 
      Build the tests with exceptions support.
 
-### Building and Running Tests
+## Build / Run
 
 Execute the following commands from the top-level directory:
 
