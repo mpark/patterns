@@ -21,6 +21,7 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang" OR
   add_compile_options(-Werror)
   add_compile_options(-Wextra)
   add_compile_options(-pedantic)
+
   if(NOT ${MPARK_PATTERNS_EXCEPTIONS})
     add_compile_options(-fno-exceptions)
   endif()
