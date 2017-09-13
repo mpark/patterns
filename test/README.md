@@ -8,13 +8,13 @@
 [![godbolt][badge.godbolt]][godbolt]
 [![wandbox][badge.wandbox]][wandbox]
 
-[badge.release]: https://img.shields.io/github/release/mpark/variant.svg
+[badge.release]: https://img.shields.io/github/release/mpark/patterns.svg
 [badge.travis]: https://travis-ci.org/mpark/patterns.svg?branch=master
 [badge.license]: http://img.shields.io/badge/license-boost-blue.svg
 [badge.godbolt]: https://img.shields.io/badge/try%20it-on%20godbolt-222266.svg
 [badge.wandbox]: https://img.shields.io/badge/try%20it-on%20wandbox-5cb85c.svg
 
-[release]: https://github.com/mpark/variant/releases/latest
+[release]: https://github.com/mpark/patterns/releases/latest
 [travis]: https://travis-ci.org/mpark/patterns
 [license]: https://github.com/mpark/patterns/blob/master/LICENSE.md
 [godbolt]: https://godbolt.org/g/xWYuHJ
