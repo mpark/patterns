@@ -10,57 +10,21 @@ git:
 
 matrix:
   include:
-    # ubuntu 14.04, gcc-7, debug, exceptions
-    - env: VER=7 BUILD=Debug EX=ON
+    # ubuntu 14.04, gcc-7
+    - env: VER=7
       compiler: gcc
       os: linux
       dist: trusty
-      addons: &gcc7 { apt: { packages: ["g++-7"], sources: ["ubuntu-toolchain-r-test"] } }
-    # ubuntu 14.04, gcc-7, debug, no exceptions
-    - env: VER=7 BUILD=Debug EX=OFF
-      compiler: gcc
-      os: linux
-      dist: trusty
-      addons: *gcc7
-    # ubuntu 14.04, gcc-7, release, exceptions
-    - env: VER=7 BUILD=Release EX=ON
-      compiler: gcc
-      os: linux
-      dist: trusty
-      addons: *gcc7
-    # ubuntu 14.04, gcc-7, release, no exceptions
-    - env: VER=7 BUILD=Release EX=OFF
-      compiler: gcc
-      os: linux
-      dist: trusty
-      addons: *gcc7
+      addons: { apt: { packages: ["g++-7"], sources: ["ubuntu-toolchain-r-test"] } }
 
-    # ubuntu 14.04, clang-5.0, debug, exceptions
-    - env: VER=5.0 BUILD=Debug EX=ON
+    # ubuntu 14.04, clang-5.0
+    - env: VER=5.0
       compiler: clang
       os: linux
       dist: trusty
-      addons: &clang50 { apt: { packages: ["clang-5.0"], sources: ["ubuntu-toolchain-r-test", "llvm-toolchain-trusty-5.0"] } }
-    # ubuntu 14.04, clang-5.0, debug, no exceptions
-    - env: VER=5.0 BUILD=Debug EX=OFF
-      compiler: clang
-      os: linux
-      dist: trusty
-      addons: *clang50
-    # ubuntu 14.04, clang-5.0, release, exceptions
-    - env: VER=5.0 BUILD=Release EX=ON
-      compiler: clang
-      os: linux
-      dist: trusty
-      addons: *clang50
-    # ubuntu 14.04, clang-5.0, release, no exceptions
-    - env: VER=5.0 BUILD=Release EX=OFF
-      compiler: clang
-      os: linux
-      dist: trusty
-      addons: *clang50
+      addons: { apt: { packages: ["clang-5.0"], sources: ["ubuntu-toolchain-r-test", "llvm-toolchain-trusty-5.0"] } }
 
-before_install:
+install:
   # Save the name of the compiler.
   - COMPILER=${CC}
   # Set the correct `CC` and `CXX` environment variables.
@@ -125,18 +89,24 @@ before_install:
       export CXXFLAGS="${CXXFLAGS} -isystem ${DEPS}/include"
     fi
 
-install:
+script:
+  - BUILDS=(Debug Release)
+  - EXS=(ON OFF)
   - mkdir build
   - pushd build
-  - cmake -DCMAKE_BUILD_TYPE="${BUILD}"
-          -DMPARK_PATTERNS_EXCEPTIONS="${EX}"
-          -DMPARK_PATTERNS_INCLUDE_TESTS=ON ..
-  - cmake --build . -- -j 2
-  - popd
-
-script:
-  - pushd build
-  - ctest -V
+  - |
+    for BUILD in "${BUILDS[@]}"; do
+      for EX in "${EXS[@]}"; do
+        (
+          set -x
+          cmake -DCMAKE_BUILD_TYPE="${BUILD}"        \
+                -DMPARK_PATTERNS_EXCEPTIONS="${EX}"  \
+                -DMPARK_PATTERNS_INCLUDE_TESTS=ON ..
+        )
+        cmake --build . -- -j 2
+        ctest -V
+      done
+    done
   - popd
 
 notifications:

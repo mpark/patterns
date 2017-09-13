@@ -5,7 +5,7 @@
 # Distributed under the Boost Software License, Version 1.0.
 # (See accompanying file LICENSE.md or copy at http://boost.org/LICENSE_1_0.txt)
 
-cmake_minimum_required(VERSION 3.8.2)
+cmake_minimum_required(VERSION 3.6.3)
 
 project(MPark.Patterns VERSION 0.1.0 LANGUAGES CXX)
 
@@ -53,18 +53,6 @@ install(
   DESTINATION lib/cmake/mpark_patterns)
 
 if(MPARK_PATTERNS_INCLUDE_TESTS)
-  if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" AND
-     "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
-    add_compile_options(-Qunused-arguments)
-    add_compile_options(-Wno-deprecated-declarations)
-    add_compile_options(-Wno-unknown-argument)
-  endif()
-
-  add_definitions(-DGTEST_HAS_TR1_TUPLE=0)
-  add_definitions(-DGTEST_HAS_STD_TUPLE=1)
-  add_subdirectory(3rdparty/googletest/googletest)
-  config_compiler_and_linker()
-
   enable_testing()
   add_subdirectory(test)
 endif()
