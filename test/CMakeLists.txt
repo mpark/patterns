@@ -19,6 +19,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR
   add_compile_options(-Werror)
   add_compile_options(-Wextra)
   add_compile_options(-pedantic)
+  add_compile_options(-Wno-shadow)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND

@@ -29,17 +29,12 @@ void fizzbuzz() {
   }
 }
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
 int factorial(int n) {
   using namespace mpark::patterns;
   return match(n)(pattern(0) = [] { return 1; },
                   pattern(arg) = [](int n) { return n * factorial(n - 1); });
 }
-#pragma GCC diagnostic pop
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
 int fib_v0(int n) {
   using namespace mpark::patterns;
   assert(n >= 0);
@@ -48,10 +43,7 @@ int fib_v0(int n) {
       pattern(1) = [] { return 1; },
       pattern(arg) = [](int n) { return fib_v0(n - 1) + fib_v0(n - 2); });
 }
-#pragma GCC diagnostic pop
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
 int fib_v1(int n) {
   using namespace mpark::patterns;
   return match(n)(
@@ -59,10 +51,7 @@ int fib_v1(int n) {
       pattern(1) = [] { return 1; },
       pattern(arg) = [](int n) { return fib_v1(n - 1) + fib_v1(n - 2); });
 }
-#pragma GCC diagnostic pop
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
 int fib_v2(int n) {
   using namespace mpark::patterns;
   return match(n)(
@@ -70,7 +59,6 @@ int fib_v2(int n) {
       pattern(arg(anyof(0, 1))) = [](int n) { return n; },
       pattern(arg) = [](int n) { return fib_v2(n - 1) + fib_v2(n - 2); });
 }
-#pragma GCC diagnostic pop
 
 TEST(Intro, Factorial) {
   EXPECT_EQ(120, factorial(5));

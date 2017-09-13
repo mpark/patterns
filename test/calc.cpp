@@ -120,8 +120,6 @@ namespace std {
 namespace calc {
 
   std::ostream &operator<<(std::ostream &strm, const Expr &expr) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
     using namespace mpark::patterns;
     placeholder lhs, rhs;
     match(expr)(
@@ -136,12 +134,9 @@ namespace calc {
           strm << "(fn [] " << body << ')';
         });
     return strm;
-#pragma GCC diagnostic pop
   }
 
   int eval(const Expr &expr) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
     using namespace mpark::patterns;
     placeholder lhs, rhs;
     return match(expr)(
@@ -153,7 +148,6 @@ namespace calc {
           return eval(lhs) * eval(rhs);
         },
         pattern(sum<Func>(prod(arg))) = [](auto &&body) { return eval(body); });
-#pragma GCC diagnostic pop
   }
 
 }  // namespace calc

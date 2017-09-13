@@ -109,8 +109,6 @@ namespace rb {
 
   template <typename T>
   void Node<T>::balance() {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wshadow"
     using namespace mpark::patterns;
     placeholder a, b, c, d, x, y, z;
     match(std::move(*this))(
@@ -129,7 +127,6 @@ namespace rb {
 #undef FWD
             },
         pattern(_) = [] {});
-#pragma GCC diagnostic pop
   }
 
 }  // namespace rb
