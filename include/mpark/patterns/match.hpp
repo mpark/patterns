@@ -8,6 +8,7 @@
 #ifndef MPARK_PATTERNS_MATCH_HPP
 #define MPARK_PATTERNS_MATCH_HPP
 
+#include <array>
 #include <cstddef>
 #include <optional>
 #include <stdexcept>
