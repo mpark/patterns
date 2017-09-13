@@ -7,7 +7,7 @@
 
 cmake_minimum_required(VERSION 3.8.2)
 
-project(MPark.Patterns VERSION 1.0.0 LANGUAGES CXX)
+project(MPark.Patterns VERSION 0.1.0 LANGUAGES CXX)
 
 # Option.
 option(MPARK_PATTERNS_INCLUDE_TESTS "Build tests." OFF)
