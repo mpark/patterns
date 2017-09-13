@@ -101,8 +101,8 @@ before_install:
       brew uninstall cmake
       brew install cmake
     elif [ "${TRAVIS_OS_NAME}" = "linux" ]; then
-      travis_retry wget --no-check-certificate https://cmake.org/files/v3.7/cmake-3.7.2-Linux-x86_64.sh
-      bash cmake-3.7.2-Linux-x86_64.sh --skip-license --prefix="${DEPS}"
+      travis_retry wget --no-check-certificate https://cmake.org/files/v3.8/cmake-3.8.2-Linux-x86_64.sh
+      bash cmake-3.8.2-Linux-x86_64.sh --skip-license --prefix="${DEPS}"
       export PATH="${DEPS}/bin:${PATH}"
     fi
   # Install specific version of libc++.
@@ -130,11 +130,7 @@ before_install:
         cp llvm/projects/libcxxabi/include/cxxabi.h ${DEPS}/include/c++/v1
       fi
 
-      # These flags are passed via `-DCMAKE_CXX_FLAGS` because setting them on
-      # `CXXFLAGS` conflicts with the include directories explicitly set by
-      # libc++ when it's being built for the `std::variant` tests.
-      COMPILE_FLAGS="-nostdinc++ -isystem ${DEPS}/include/c++/v1"
-
+      export CXXFLAGS="${CXXFLAGS} -nostdinc++ -isystem ${DEPS}/include/c++/v1"
       export LDFLAGS="${LDFLAGS} -L${DEPS}/lib -lc++ -lc++abi"
       export LD_LIBRARY_PATH="${DEPS}/lib:${LD_LIBRARY_PATH}"
     fi
@@ -155,8 +151,7 @@ before_install:
 install:
   - mkdir build
   - pushd build
-  - cmake -DCMAKE_CXX_FLAGS="${COMPILE_FLAGS}"
-          -DCMAKE_BUILD_TYPE="${BUILD}"
+  - cmake -DCMAKE_BUILD_TYPE="${BUILD}"
           -DMPARK_PATTERNS_EXCEPTIONS="${EX}"
           -DMPARK_PATTERNS_INCLUDE_TESTS=ON ..
   - cmake --build . -- -j 2
