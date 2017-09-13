@@ -184,7 +184,7 @@ namespace mpark::patterns {
     template <std::size_t N, typename... Patterns>
     constexpr bool matches_check() noexcept {
       constexpr std::size_t size = sizeof...(Patterns);
-      if (size > N + 1) {
+      if constexpr (size > N + 1) {
         return false;
       }
       constexpr std::array<bool, sizeof...(Patterns)> bs = {
