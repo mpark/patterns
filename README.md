@@ -3,14 +3,17 @@
 > Pattern Matching in __C++__.
 
 [![stability][badge.stability]][stability]
+[![travis][badge.travis]][travis]
 [![license][badge.license]][license]
 [![wandbox][badge.wandbox]][wandbox]
 
 [badge.stability]: https://img.shields.io/badge/stability-experimental-orange.svg
+[badge.travis]: https://travis-ci.org/mpark/patterns.svg?branch=master
 [badge.license]: http://img.shields.io/badge/license-boost-blue.svg
 [badge.wandbox]: https://img.shields.io/badge/try%20it-on%20wandbox-5cb85c.svg
 
 [stability]: http://github.com/badges/stability-badges
+[travis]: https://travis-ci.org/mpark/patterns
 [license]: https://github.com/mpark/patterns/blob/master/LICENSE.md
 [wandbox]: https://wandbox.org/permlink/G46QnPBB0OiV5m0N
 
@@ -127,6 +130,8 @@ The type `T` satisfies `Product` if given a variable `x` of type `T`,
 
 __NOTE__: These requirements are very similar to the requirements for
           [C++17 Structured Bindings][structured-bindings].
+
+[structured-bindings]: http://en.cppreference.com/w/cpp/language/declarations#Structured_binding_declaration
 
 #### Syntax
 
@@ -278,6 +283,8 @@ match(x)(
 
 This could also be used to implement [C++17 `std::apply`][apply]:
 
+[apply]: http://en.cppreference.com/w/cpp/utility/apply
+
 ```cpp
 template <typename F, typename Tuple>
 decltype(auto) apply(F &&f, Tuple &&t) {
@@ -288,6 +295,8 @@ decltype(auto) apply(F &&f, Tuple &&t) {
 ```
 
 and even [C++17 `std::visit`][visit]:
+
+[visit]: http://en.cppreference.com/w/cpp/utility/variant/visit
 
 ```cpp
 template <typename F, typename... Vs>
@@ -365,11 +374,31 @@ match(101, 202)(
 // prints: "LT".
 ```
 
+## Requirements
+
+This library requires a standard conformant __C++17__ compiler.
+The following compilers are continously tested:
+
+| Compiler                               | Operating System                            | Version String                                                                          |
+|----------------------------------------|---------------------------------------------|-----------------------------------------------------------------------------------------|
+| GCC 7.2.0                              | Ubuntu 14.04.5 LTS                          | g++-7 (Ubuntu 7.2.0-1ubuntu1~14.04) 7.2.0                                               |
+| Clang 5.0.0                            | Ubuntu 14.04.5 LTS                          | clang version 5.0.0-svn312333-1~exp1 (branches/release_50)                              |
+
+## CMake Variables
+
+  -  __`MPARK_PATTERNS_INCLUDE_TESTS`__:`BOOL` (__default__: `OFF`)
+
+     Build tests.
+
+## Unit Tests
+
+Refer to [test/README.md](test/README.md).
+
+## License
+
+Distributed under the [Boost Software License, Version 1.0](LICENSE.md).
+
 ## Related Work
 
   - [solodon4/Mach7](https://github.com/solodon4/Mach7)
   - [jbandela/simple_match](https://github.com/jbandela/simple_match/)
-
-[apply]: http://en.cppreference.com/w/cpp/utility/apply
-[visit]: http://en.cppreference.com/w/cpp/utility/variant/visit
-[structured-bindings]: http://en.cppreference.com/w/cpp/language/declarations#Structured_binding_declaration
