@@ -110,12 +110,17 @@ namespace mpark::patterns {
 
   namespace detail {
 
-    template <
-        std::size_t I,
-        typename T,
-        std::enable_if_t<std::is_array_v<std::remove_reference_t<T>>, int> = 0>
-    decltype(auto) generic_get_impl(T &&t, lib::priority<0>) noexcept {
-      return std::forward<T>(t)[I];
+    // Both (l/r)value-ref versions are handled for C-style array because
+    // `std::forward<Array>(array)[I]` always yields an lvalue-ref on GCC.
+
+    template <std::size_t I, typename T, std::size_t N>
+    T &generic_get_impl(T (&array)[N], lib::priority<0>) noexcept {
+      return array[I];
+    }
+
+    template <std::size_t I, typename T, std::size_t N>
+    T &&generic_get_impl(T (&&array)[N], lib::priority<0>) noexcept {
+      return std::move(array[I]);
     }
 
     template <std::size_t I, typename T>
