@@ -80,10 +80,9 @@ namespace mpark::patterns {
   auto matches(const SumByVisit<Pattern> &sum, Value &&value, F &&f) {
     using std::visit;
     return visit(
-        [&](auto &&arg) {
-          return matches(sum.pattern,
-                         std::forward<decltype(arg)>(arg),
-                         std::forward<F>(f));
+        [&](auto &&v) {
+          return matches(
+              sum.pattern, std::forward<decltype(v)>(v), std::forward<F>(f));
         },
         std::forward<Value>(value));
   }

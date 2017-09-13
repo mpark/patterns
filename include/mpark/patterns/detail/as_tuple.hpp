@@ -60,11 +60,13 @@ namespace mpark::patterns::detail {
         return std::nullopt;
       }
     } else if constexpr (is_mid_constructible) {
+      // We recursve into `[M, E)` rather than `[M + 1, E)` since `M` could be
+      // the answer.
       return aggregate_size_impl<T, M, E>();
-    } else if constexpr (constexpr auto size = aggregate_size_impl<T, B, M>()) {
-      return size;
-    } else if constexpr (constexpr auto size = aggregate_size_impl<T, M, E>()) {
-      return size;
+    } else if constexpr (constexpr auto lhs = aggregate_size_impl<T, B, M>()) {
+      return lhs;
+    } else if constexpr (constexpr auto rhs = aggregate_size_impl<T, M, E>()) {
+      return rhs;
     }
   }
 

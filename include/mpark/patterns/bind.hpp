@@ -19,9 +19,9 @@ namespace mpark::patterns {
 
   template <>
   struct Arg<Wildcard> {
-    template <typename Pattern_>
-    auto operator()(const Pattern_ &pattern_) const noexcept {
-      return Arg<Pattern_>{pattern_};
+    template <typename Pattern>
+    auto operator()(const Pattern &pattern_) const noexcept {
+      return Arg<Pattern>{pattern_};
     }
 
     const Wildcard &pattern = _;
@@ -32,9 +32,9 @@ namespace mpark::patterns {
   inline constexpr Arg<Wildcard> arg{};
 
   template <typename Pattern, typename Value, typename F>
-  auto matches(const Arg<Pattern> &arg, Value &&value, F &&f) {
+  auto matches(const Arg<Pattern> &arg_, Value &&value, F &&f) {
     return matches(
-        arg.pattern, std::forward<Value>(value), [&](auto &&... args) {
+        arg_.pattern, std::forward<Value>(value), [&](auto &&... args) {
           return match_invoke(std::forward<F>(f),
                               std::forward<Value>(value),
                               std::forward<decltype(args)>(args)...);

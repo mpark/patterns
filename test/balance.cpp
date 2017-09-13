@@ -38,6 +38,17 @@ namespace memory {
 
 }  // namespace memory
 
+namespace utility {
+
+  template <typename Arg>
+  std::string stringify(Arg &&arg) {
+    std::ostringstream strm;
+    strm << std::forward<Arg>(arg);
+    return strm.str();
+  }
+
+}  // namespace utility
+
 namespace rb {
 
   enum Color { Red, Black };
@@ -98,6 +109,8 @@ namespace rb {
 
   template <typename T>
   void Node<T>::balance() {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
     using namespace mpark::patterns;
     placeholder a, b, c, d, x, y, z;
     match(std::move(*this))(
@@ -116,6 +129,7 @@ namespace rb {
 #undef FWD
             },
         pattern(_) = [] {});
+#pragma GCC diagnostic pop
   }
 
 }  // namespace rb
@@ -157,10 +171,10 @@ TEST(Balance, Typical) {
       nullptr);
 
   std::string before = "{Black,{Red,{Red,null,101,null},202,null},303,null}";
-  EXPECT_EQ(before, (std::ostringstream{} << *tree).str());
+  EXPECT_EQ(before, utility::stringify(*tree));
 
   tree->balance();
 
   std::string after = "{Red,{Black,null,101,null},202,{Black,null,303,null}}";
-  EXPECT_EQ(after, (std::ostringstream{} << *tree).str());
+  EXPECT_EQ(after, utility::stringify(*tree));
 }

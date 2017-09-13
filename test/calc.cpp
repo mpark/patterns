@@ -37,6 +37,17 @@ namespace memory {
 
 }  // namespace memory
 
+namespace utility {
+
+  template <typename Arg>
+  std::string stringify(Arg &&arg) {
+    std::ostringstream strm;
+    strm << std::forward<Arg>(arg);
+    return strm.str();
+  }
+
+}  // namespace utility
+
 namespace calc {
 
   class Expr;
@@ -109,6 +120,8 @@ namespace std {
 namespace calc {
 
   std::ostream &operator<<(std::ostream &strm, const Expr &expr) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
     using namespace mpark::patterns;
     placeholder lhs, rhs;
     match(expr)(
@@ -123,9 +136,12 @@ namespace calc {
           strm << "(fn [] " << body << ')';
         });
     return strm;
+#pragma GCC diagnostic pop
   }
 
   int eval(const Expr &expr) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
     using namespace mpark::patterns;
     placeholder lhs, rhs;
     return match(expr)(
@@ -137,6 +153,7 @@ namespace calc {
           return eval(lhs) * eval(rhs);
         },
         pattern(sum<Func>(prod(arg))) = [](auto &&body) { return eval(body); });
+#pragma GCC diagnostic pop
   }
 
 }  // namespace calc
@@ -144,20 +161,20 @@ namespace calc {
 TEST(Calc, Int) {
   using namespace calc;
   Expr expr = 101;
-  EXPECT_EQ("101", (std::ostringstream{} << expr).str());
+  EXPECT_EQ("101", utility::stringify(expr));
   EXPECT_EQ(101, eval(expr));
 }
 
 TEST(Calc, MultPlus) {
   using namespace calc;
   Expr expr = Mult(Plus(Expr(101), Expr(202)), 303);
-  EXPECT_EQ("(* (+ 101 202) 303)", (std::ostringstream{} << expr).str());
+  EXPECT_EQ("(* (+ 101 202) 303)", utility::stringify(expr));
   EXPECT_EQ(91809, eval(expr));
 }
 
 TEST(Calc, FuncPlus) {
   using namespace calc;
   Expr expr = Func(Plus(Expr(101), Expr(202)));
-  EXPECT_EQ("(fn [] (+ 101 202))", (std::ostringstream{} << expr).str());
+  EXPECT_EQ("(fn [] (+ 101 202))", utility::stringify(expr));
   EXPECT_EQ(303, eval(expr));
 }
