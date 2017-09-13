@@ -5,16 +5,19 @@
 [![release][badge.release]][release]
 [![travis][badge.travis]][travis]
 [![license][badge.license]][license]
+[![godbolt][badge.godbolt]][godbolt]
 [![wandbox][badge.wandbox]][wandbox]
 
 [badge.release]: https://img.shields.io/github/release/mpark/variant.svg
 [badge.travis]: https://travis-ci.org/mpark/patterns.svg?branch=master
 [badge.license]: http://img.shields.io/badge/license-boost-blue.svg
+[badge.godbolt]: https://img.shields.io/badge/try%20it-on%20godbolt-222266.svg
 [badge.wandbox]: https://img.shields.io/badge/try%20it-on%20wandbox-5cb85c.svg
 
 [release]: https://github.com/mpark/variant/releases/latest
 [travis]: https://travis-ci.org/mpark/patterns
 [license]: https://github.com/mpark/patterns/blob/master/LICENSE.md
+[godbolt]: https://godbolt.org/g/xWYuHJ
 [wandbox]: https://wandbox.org/permlink/G46QnPBB0OiV5m0N
 
 ## Introduction
@@ -29,32 +32,23 @@ the functional world, and this library draws inspiration from languages such as
 Haskell, OCaml, Rust, Scala, and Swift.
 
 ```cpp
-#include <functional>
-#include <iostream>
-#include <sstream>
+#include <cstdio>
 
 #include <mpark/patterns.hpp>
 
-int eval(const std::string& equation) {
-  std::istringstream strm(equation);
-  strm.exceptions(std::istringstream::failbit);
-
-  int lhs, rhs;
-  std::string op;
-  strm >> lhs >> op >> rhs;
-
+void fizzbuzz() {
   using namespace mpark::patterns;
-  placeholder lhs, rhs;
-  return match(lhs, op, rhs)(
-      pattern(lhs, "plus" , rhs) = std::plus<>{},
-      pattern(lhs, "minus", rhs) = std::minus<>{},
-      pattern(lhs, "mult" , rhs) = std::multiplies<>{},
-      pattern(lhs, "div"  , rhs) = std::divides<>{});
+  for (int i = 1; i <= 100; ++i) {
+    match(i % 3, i % 5)(
+        pattern(0, 0) = [] { std::printf("fizzbuzz\n"); },
+        pattern(0, _) = [] { std::printf("fizz\n"); },
+        pattern(_, 0) = [] { std::printf("buzz\n"); },
+        pattern(_, _) = [i] { std::printf("%d\n", i); });
+  }
 }
 
 int main() {
-  std::cout << eval("101 plus 202") << '\n';  // prints: "303".
-  std::cout << eval("64 div 2") << '\n';  // prints: "32".
+  fizzbuzz();
 }
 ```
 
