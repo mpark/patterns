@@ -28,7 +28,7 @@ namespace mpark::patterns {
   };
 #endif
 
-  inline constexpr struct no_match_t {} no_match{};
+  /* inline */ constexpr struct no_match_t {} no_match{};
 
   template <typename T>
   struct match_result : std::optional<detail::Forwarder<T>> {
@@ -175,10 +175,10 @@ namespace mpark::patterns {
     }
 
     template <typename Pattern>
-    inline constexpr bool is_variadic_v = false;
+    /* inline */ constexpr bool is_variadic_v = false;
 
     template <typename Pattern>
-    inline constexpr bool is_variadic_v<Variadic<Pattern>> = true;
+    /* inline */ constexpr bool is_variadic_v<Variadic<Pattern>> = true;
 
     template <std::size_t N, typename... Patterns>
     constexpr bool matches_check() noexcept {

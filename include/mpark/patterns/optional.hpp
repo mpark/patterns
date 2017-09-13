@@ -12,7 +12,7 @@
 
 namespace mpark::patterns {
 
-  inline constexpr struct None {} none{};
+  /* inline */ constexpr struct None {} none{};
 
   template <typename Value, typename F>
   auto matches(None, Value &&value, F &&f) {

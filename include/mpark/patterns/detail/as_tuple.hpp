@@ -71,7 +71,7 @@ namespace mpark::patterns::detail {
       : lib::size_constant<*aggregate_size_impl<T, 0, sizeof(T) + 1>()> {};
 
   template <typename T>
-  inline constexpr std::size_t aggregate_size_v = aggregate_size<T>::value;
+  /* inline */ constexpr std::size_t aggregate_size_v = aggregate_size<T>::value;
 
   template <typename Aggregate>
   auto as_tuple_impl(Aggregate &&, lib::size_constant<0>) {
