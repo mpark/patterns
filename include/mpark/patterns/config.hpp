@@ -17,4 +17,8 @@
 #define MPARK_PATTERNS_EXCEPTIONS
 #endif
 
+#if defined(__cpp_lib_is_aggregate)
+#define MPARK_PATTERNS_IS_AGGREGATE
+#endif
+
 #endif  // MPARK_PATTERNS_CONFIG_HPP

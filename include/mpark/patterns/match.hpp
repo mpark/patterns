@@ -258,7 +258,9 @@ namespace mpark::patterns {
                       F &&f,
                       lib::priority<2>) {
       using Decayed = std::decay_t<Aggregate>;
+#ifdef MPARK_PATTERNS_IS_AGGREGATE
       static_assert(std::is_aggregate_v<Decayed>, "");
+#endif
       static_assert(std::is_copy_constructible_v<Decayed>, "");
       return matches(prod,
                      as_tuple(std::forward<Aggregate>(aggregate)),
