@@ -5,7 +5,7 @@
 # Distributed under the Boost Software License, Version 1.0.
 # (See accompanying file LICENSE.md or copy at http://boost.org/LICENSE_1_0.txt)
 
-cmake_minimum_required(VERSION 3.6.3)
+cmake_minimum_required(VERSION 3.8.2)
 
 project(MPark.Patterns VERSION 1.0.0 LANGUAGES CXX)
 

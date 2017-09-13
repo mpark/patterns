@@ -5,12 +5,14 @@
 # Distributed under the Boost Software License, Version 1.0.
 # (See accompanying file LICENSE.md or copy at http://boost.org/LICENSE_1_0.txt)
 
-cmake_minimum_required(VERSION 3.6.3)
+cmake_minimum_required(VERSION 3.8.2)
 
 option(MPARK_PATTERNS_EXCEPTIONS
        "Build the tests with exceptions-handling support." ON)
 
-add_compile_options(-std=c++1z)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang" OR
    "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" OR
