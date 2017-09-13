@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 # MPark.Patterns
 #
 # Copyright Michael Park, 2017
