@@ -1,0 +1,171 @@
+language: cpp
+sudo: false
+
+branches:
+  only:
+    - master
+
+git:
+  depth: 1
+
+matrix:
+  include:
+    # ubuntu 14.04, gcc-7, debug, exceptions
+    - env: VER=7 BUILD=Debug EX=ON
+      compiler: gcc
+      os: linux
+      dist: trusty
+      addons: &gcc7 { apt: { packages: ["g++-7"], sources: ["ubuntu-toolchain-r-test"] } }
+    # ubuntu 14.04, gcc-7, debug, no exceptions
+    - env: VER=7 BUILD=Debug EX=OFF
+      compiler: gcc
+      os: linux
+      dist: trusty
+      addons: *gcc7
+    # ubuntu 14.04, gcc-7, release, exceptions
+    - env: VER=7 BUILD=Release EX=ON
+      compiler: gcc
+      os: linux
+      dist: trusty
+      addons: *gcc7
+    # ubuntu 14.04, gcc-7, release, no exceptions
+    - env: VER=7 BUILD=Release EX=OFF
+      compiler: gcc
+      os: linux
+      dist: trusty
+      addons: *gcc7
+
+    # ubuntu 14.04, clang-5.0, debug, exceptions
+    - env: VER=5.0 BUILD=Debug EX=ON
+      compiler: clang
+      os: linux
+      dist: trusty
+      addons: &clang50 { apt: { packages: ["clang-5.0"], sources: ["ubuntu-toolchain-r-test", "llvm-toolchain-trusty-5.0"] } }
+    # ubuntu 14.04, clang-5.0, debug, no exceptions
+    - env: VER=5.0 BUILD=Debug EX=OFF
+      compiler: clang
+      os: linux
+      dist: trusty
+      addons: *clang50
+    # ubuntu 14.04, clang-5.0, release, exceptions
+    - env: VER=5.0 BUILD=Release EX=ON
+      compiler: clang
+      os: linux
+      dist: trusty
+      addons: *clang50
+    # ubuntu 14.04, clang-5.0, release, no exceptions
+    - env: VER=5.0 BUILD=Release EX=OFF
+      compiler: clang
+      os: linux
+      dist: trusty
+      addons: *clang50
+
+    # OS X Sierra 10.12, apple-clang-9, debug, exceptions
+    - env: BUILD=Debug EX=ON
+      compiler: clang
+      os: osx
+      osx_image: xcode9
+    # OS X Sierra 10.12, apple-clang-9, debug, no exceptions
+    - env: BUILD=Debug EX=OFF
+      compiler: clang
+      os: osx
+      osx_image: xcode9
+    # OS X Sierra 10.12, apple-clang-9, release, exceptions
+    - env: BUILD=Release EX=ON
+      compiler: clang
+      os: osx
+      osx_image: xcode9
+    # OS X Sierra 10.12, apple-clang-9, release, no exceptions
+    - env: BUILD=Release EX=OFF
+      compiler: clang
+      os: osx
+      osx_image: xcode9
+
+before_install:
+  # Save the name of the compiler.
+  - COMPILER=${CC}
+  # Set the correct `CC` and `CXX` environment variables.
+  - |
+    if [ -n "${VER}" ]; then
+      export CC="${CC}-${VER}"
+      export CXX="${CXX}-${VER}"
+    fi
+  - ${CXX} --version
+  # Directory for dependency installation.
+  - DEPS="${TRAVIS_BUILD_DIR}/deps"
+  - mkdir -p ${DEPS}
+  # Install newer cmake.
+  - |
+    if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+      brew update
+      brew uninstall cmake
+      brew install cmake
+    elif [ "${TRAVIS_OS_NAME}" = "linux" ]; then
+      travis_retry wget --no-check-certificate https://cmake.org/files/v3.7/cmake-3.7.2-Linux-x86_64.sh
+      bash cmake-3.7.2-Linux-x86_64.sh --skip-license --prefix="${DEPS}"
+      export PATH="${DEPS}/bin:${PATH}"
+    fi
+  # Install specific version of libc++.
+  - |
+    if [ "${TRAVIS_OS_NAME}" = "linux" ] && [ "${COMPILER}" = "clang" ] && [ -n "${VER}" ]; then
+      LLVM_VER=$(echo "$(${CXX} --version)" | grep -Po "clang version \K([0-9]\.[0-9]\.[0-9])")
+
+      LLVM_URL="http://llvm.org/releases/${LLVM_VER}/llvm-${LLVM_VER}.src.tar.xz"
+      LIBCXX_URL="http://llvm.org/releases/${LLVM_VER}/libcxx-${LLVM_VER}.src.tar.xz"
+      LIBCXXABI_URL="http://llvm.org/releases/${LLVM_VER}/libcxxabi-${LLVM_VER}.src.tar.xz"
+
+      mkdir -p llvm-build llvm llvm/projects/libcxx llvm/projects/libcxxabi
+
+      travis_retry wget -O - ${LLVM_URL} | tar --strip-components=1 -xJ -C llvm
+      travis_retry wget -O - ${LIBCXX_URL} | tar --strip-components=1 -xJ -C llvm/projects/libcxx
+      travis_retry wget -O - ${LIBCXXABI_URL} | tar --strip-components=1 -xJ -C llvm/projects/libcxxabi
+
+      pushd llvm-build
+      cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${DEPS} ../llvm
+      cmake --build projects/libcxx --target install -- -j 2
+      cmake --build projects/libcxxabi --target install -- -j 2
+      popd
+      if [ "${VER}" = "3.5" ]; then
+        # `cxxabi.h` isn't installed correctly for libc++-3.5.
+        cp llvm/projects/libcxxabi/include/cxxabi.h ${DEPS}/include/c++/v1
+      fi
+
+      # These flags are passed via `-DCMAKE_CXX_FLAGS` because setting them on
+      # `CXXFLAGS` conflicts with the include directories explicitly set by
+      # libc++ when it's being built for the `std::variant` tests.
+      COMPILE_FLAGS="-nostdinc++ -isystem ${DEPS}/include/c++/v1"
+
+      export LDFLAGS="${LDFLAGS} -L${DEPS}/lib -lc++ -lc++abi"
+      export LD_LIBRARY_PATH="${DEPS}/lib:${LD_LIBRARY_PATH}"
+    fi
+  # Install newer boost.
+  - |
+    if [ "${TRAVIS_OS_NAME}" = "osx" ]; then
+      brew update
+      brew uninstall boost
+      brew install boost
+    elif [ "${TRAVIS_OS_NAME}" = "linux" ]; then
+      mkdir -p ${DEPS}/include
+
+      BOOST_URL="https://dl.bintray.com/boostorg/release/1.65.0/source/boost_1_65_0.tar.gz"
+      travis_retry wget -O - ${BOOST_URL} | tar --strip-components=1 -xz -C ${DEPS}/include boost_1_65_0/boost
+      export CXXFLAGS="${CXXFLAGS} -isystem ${DEPS}/include"
+    fi
+
+install:
+  - mkdir build
+  - pushd build
+  - cmake -DCMAKE_CXX_FLAGS="${COMPILE_FLAGS}"
+          -DCMAKE_BUILD_TYPE="${BUILD}"
+          -DMPARK_PATTERNS_EXCEPTIONS="${EX}"
+          -DMPARK_PATTERNS_INCLUDE_TESTS=ON ..
+  - cmake --build . -- -j 2
+  - popd
+
+script:
+  - pushd build
+  - ctest -V
+  - popd
+
+notifications:
+  email: false
