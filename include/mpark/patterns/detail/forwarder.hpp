@@ -44,14 +44,6 @@ namespace mpark::patterns::detail {
     public:
     constexpr Forwarder(T &&value) : value_(std::forward<T>(value)) {}
 
-    template <typename U,
-              std::enable_if_t<enable_explicit<U, const U &>(), int> = 0>
-    explicit Forwarder(const Forwarder<U> &that) : value_(that.forward()) {}
-
-    template <typename U,
-              std::enable_if_t<enable_implicit<U, const U &>(), int> = 0>
-    Forwarder(const Forwarder<U> &that) : value_(that.forward()) {}
-
     template <typename U, std::enable_if_t<enable_explicit<U, U &&>(), int> = 0>
     explicit Forwarder(Forwarder<U> &&that)
         : value_(std::move(that).forward()) {}

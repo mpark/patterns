@@ -83,11 +83,21 @@ TEST(Intro, ExplicitReturnType) {
   EXPECT_EQ(4, x);
 }
 
-TEST(Intro, ExplicitVoidReturn) {
+TEST(Intro, ExplicitReturnVoid) {
   std::optional<double> o(4.2);
 
   using namespace mpark::patterns;
   match<void>(o)(
       pattern(some(arg)) = [](double v) { return v; },
       pattern(none) = [] { return 'A'; });
+}
+
+TEST(Intro, ExplicitReturnImplicitConversion) {
+  struct S {
+    S(long) { EXPECT_TRUE(true); }
+    explicit S(int) { EXPECT_TRUE(false); }
+  };
+
+  using namespace mpark::patterns;
+  match<S>(0)(pattern(_) = [] { return 42; });
 }

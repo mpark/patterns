@@ -77,6 +77,12 @@ namespace mpark::patterns::lib {
 
   }  // namespace cpp17
 
+  template <typename... Ts>
+  struct list {};
+
+  template <std::size_t I, typename T>
+  struct indexed_type : identity<T> {};
+
   template <std::size_t I>
   using size_constant = std::integral_constant<std::size_t, I>;
 

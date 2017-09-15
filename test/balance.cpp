@@ -110,7 +110,7 @@ namespace rb {
   template <typename T>
   void Node<T>::balance() {
     using namespace mpark::patterns;
-    placeholder a, b, c, d, x, y, z;
+    auto [a, b, c, d, x, y, z] = placeholders<7>();
     match(std::move(*this))(
         pattern(
             anyof(prod(Black, some(prod(Red, some(prod(Red, a, x, b)), y, c)), z, d),
