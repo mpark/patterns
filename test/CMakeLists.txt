@@ -20,7 +20,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" OR
   add_compile_options(-Wextra)
   add_compile_options(-pedantic)
   add_compile_options(-Wno-shadow)
-  add_compile_options(-Wshorten-64-to-32)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
