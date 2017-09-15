@@ -390,7 +390,7 @@ namespace mpark::patterns {
     auto insert(
         lib::list<lib::indexed_type<Q, std::index_sequence<Is...>>, Tail...>) {
       using Head = lib::indexed_type<Q, std::index_sequence<Is...>>;
-      if constexpr (P == -1) {
+      if constexpr (P == static_cast<std::size_t>(-1)) {
         return lib::
             list<Head, Tail..., lib::indexed_type<P, std::index_sequence<I>>>{};
       } else if constexpr (P == Q) {
