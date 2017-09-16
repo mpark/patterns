@@ -408,11 +408,11 @@ namespace mpark::patterns {
     } else {
       constexpr std::size_t size = [] {
         if constexpr (is_array) {
-          return std::extent_v<std::remove_reference_t<Values>>;
+          return std::extent<std::remove_reference_t<Values>>{};
         } else if constexpr (is_tuple_like) {
-          return std::tuple_size_v<std::decay_t<Values>>;
+          return std::tuple_size<std::decay_t<Values>>{};
         }
-      }();
+      }()();
       constexpr auto result =
           detail::product_pattern_check<size, Patterns...>();
       static_assert(
