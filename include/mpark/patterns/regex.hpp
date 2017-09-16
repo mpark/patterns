@@ -104,7 +104,7 @@ namespace mpark::patterns {
   inline constexpr Re re{};
 
   template <typename RegexF, typename F>
-  auto matches(const Regex<RegexF> &r, const char *s, F &&f) {
+  auto try_match(const Regex<RegexF> &r, const char *s, F &&f) {
     return RegexF{}(s, r.regex) ? match_invoke(std::forward<F>(f)) : no_match;
   }
 
@@ -113,14 +113,14 @@ namespace mpark::patterns {
             typename F,
             std::enable_if_t<!std::is_same_v<std::decay_t<Value>, const char *>,
                              int> = 0>
-  auto matches(const Regex<RegexF> &r, Value &&value, F &&f) {
+  auto try_match(const Regex<RegexF> &r, Value &&value, F &&f) {
     return RegexF{}(std::cbegin(value), std::cend(value), r.regex)
                ? match_invoke(std::forward<F>(f))
                : no_match;
   }
 
   template <typename RegexF, typename F>
-  auto matches(const Regex<RegexF, SubMatches> &r, const char *s, F &&f) {
+  auto try_match(const Regex<RegexF, SubMatches> &r, const char *s, F &&f) {
     std::cmatch results;
     return RegexF{}(s, results, r.regex)
                ? match_invoke(std::forward<F>(f), std::move(results))
@@ -132,7 +132,7 @@ namespace mpark::patterns {
             typename F,
             std::enable_if_t<!std::is_same_v<std::decay_t<Value>, const char *>,
                              int> = 0>
-  auto matches(const Regex<RegexF, SubMatches> &r, Value &&value, F &&f) {
+  auto try_match(const Regex<RegexF, SubMatches> &r, Value &&value, F &&f) {
     std::match_results<typename std::decay_t<Value>::const_iterator> results;
     return RegexF{}(std::cbegin(value), std::cend(value), results, r.regex)
                ? match_invoke(std::forward<F>(f), std::move(results))
@@ -152,7 +152,7 @@ namespace mpark::patterns {
   }  // namespace detail
 
   template <typename RegexF, typename... Patterns, typename F>
-  auto matches(const Regex<RegexF, Groups<Patterns...>> &r,
+  auto try_match(const Regex<RegexF, Groups<Patterns...>> &r,
                const char *s,
                F &&f) {
     std::cmatch results;
@@ -170,7 +170,7 @@ namespace mpark::patterns {
             typename F,
             std::enable_if_t<!std::is_same_v<std::decay_t<Value>, const char *>,
                              int> = 0>
-  auto matches(const Regex<RegexF, Groups<Patterns...>> &r,
+  auto try_match(const Regex<RegexF, Groups<Patterns...>> &r,
                Value &&value,
                F &&f) {
     std::match_results<typename std::decay_t<Value>::const_iterator> results;

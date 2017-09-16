@@ -15,7 +15,7 @@ namespace mpark::patterns {
   inline constexpr struct None {} none{};
 
   template <typename Value, typename F>
-  auto matches(None, Value &&value, F &&f) {
+  auto try_match(None, Value &&value, F &&f) {
     return value ? no_match : match_invoke(std::forward<F>(f));
   }
 
@@ -26,10 +26,10 @@ namespace mpark::patterns {
   auto some(const Pattern &pattern) { return Some<Pattern>{pattern}; }
 
   template <typename Pattern, typename Value, typename F>
-  auto matches(const Some<Pattern> &some, Value &&value, F &&f) {
-    return value ? matches(some.pattern,
-                           *std::forward<Value>(value),
-                           std::forward<F>(f))
+  auto try_match(const Some<Pattern> &some, Value &&value, F &&f) {
+    return value ? try_match(some.pattern,
+                             *std::forward<Value>(value),
+                             std::forward<F>(f))
                  : no_match;
   }
 

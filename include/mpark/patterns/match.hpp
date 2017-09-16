@@ -30,10 +30,10 @@ namespace mpark::patterns {
     virtual const char *what() const noexcept { return "match_error"; }
   };
 
-  // Used to indicate a match failure in `matches` functions.
+  // Used to indicate a match failure in `try_match` functions.
   inline constexpr struct no_match_t {} no_match{};
 
-  // The return type of `matches` functions.
+  // The return type of `try_match` functions.
 
   template <typename T>
   struct match_result : std::optional<detail::forwarder<T>> {
@@ -56,7 +56,7 @@ namespace mpark::patterns {
   template <typename T>
   inline constexpr bool is_match_result_v<match_result<T>> = true;
 
-  // `std::invoke`-like utility for `matches` functions.
+  // `std::invoke`-like utility for `try_match` functions.
   template <typename F, typename... Args>
   auto match_invoke(F &&f, Args &&... args) {
     static_assert(lib::is_invocable_v<F, Args...>,
@@ -75,7 +75,7 @@ namespace mpark::patterns {
     }
   }
 
-  // `std::apply`-like utility for `matches` functions.
+  // `std::apply`-like utility for `try_match` functions.
 
   template <typename F, typename Args, std::size_t... Is>
   auto match_apply(F &&f, Args &&args, std::index_sequence<Is...>) {
@@ -96,7 +96,7 @@ namespace mpark::patterns {
   // Expression Pattern
 
   template <typename ExprPattern, typename Value, typename F>
-  auto matches(const ExprPattern &expr_pattern, Value &&value, F &&f) {
+  auto try_match(const ExprPattern &expr_pattern, Value &&value, F &&f) {
     return expr_pattern == std::forward<Value>(value)
                ? match_invoke(std::forward<F>(f))
                : no_match;
@@ -107,7 +107,7 @@ namespace mpark::patterns {
   inline constexpr struct Wildcard {} _{};
 
   template <typename Value, typename F>
-  auto matches(Wildcard, Value &&, F &&f) {
+  auto try_match(Wildcard, Value &&, F &&f) {
     return match_invoke(std::forward<F>(f));
   }
 
@@ -190,8 +190,10 @@ namespace mpark::patterns {
   }  // namespace detail
 
   template <std::size_t I, typename Pattern, typename Value, typename F>
-  auto matches(const Identifier<I, Pattern> &identifier, Value &&value, F &&f) {
-    return matches(
+  auto try_match(const Identifier<I, Pattern> &identifier,
+                 Value &&value,
+                 F &&f) {
+    return try_match(
         identifier.pattern, std::forward<Value>(value), [&](auto &&... args) {
           return match_invoke(std::forward<F>(f),
                               detail::indexed_forwarder<I, Value &&>{
@@ -268,10 +270,10 @@ namespace mpark::patterns {
     }
 
     template <typename... Patterns, typename Values, typename F>
-    auto matches_impl(const Prod<Patterns...> &,
-                      Values &&,
-                      F &&f,
-                      std::index_sequence<>) {
+    auto try_match_impl(const Prod<Patterns...> &,
+                        Values &&,
+                        F &&f,
+                        std::index_sequence<>) {
       return match_invoke(std::forward<F>(f));
     }
 
@@ -280,15 +282,15 @@ namespace mpark::patterns {
               typename F,
               std::size_t I,
               std::size_t... Is>
-    auto matches_impl(const Prod<Patterns...> &prod,
-                      Values &&values,
-                      F &&f,
-                      std::index_sequence<I, Is...>) {
-      return matches(
+    auto try_match_impl(const Prod<Patterns...> &prod,
+                        Values &&values,
+                        F &&f,
+                        std::index_sequence<I, Is...>) {
+      return try_match(
           std::get<I>(prod.patterns),
           generic_get<I>(std::forward<Values>(values)),
           [&](auto &&... head_args) {
-            return matches_impl(
+            return try_match_impl(
                 prod,
                 std::forward<Values>(values),
                 [&](auto &&... tail_args) {
@@ -395,16 +397,16 @@ namespace mpark::patterns {
   }  // namespace detail
 
   template <typename... Patterns, typename Values, typename F>
-  auto matches(const Prod<Patterns...> &prod, Values &&values, F &&f) {
+  auto try_match(const Prod<Patterns...> &prod, Values &&values, F &&f) {
     constexpr bool is_array = std::is_array_v<std::remove_reference_t<Values>>;
     constexpr bool is_tuple_like = is_tuple_like_v<std::decay_t<Values>>;
     if constexpr (!is_array && !is_tuple_like) {
       using Aggregate = std::decay_t<Values>;
       static_assert(std::is_aggregate_v<Aggregate>);
       static_assert(std::is_copy_constructible_v<Aggregate>);
-      return matches(prod,
-                     detail::as_tuple(std::forward<Values>(values)),
-                     std::forward<F>(f));
+      return try_match(prod,
+                       detail::as_tuple(std::forward<Values>(values)),
+                       std::forward<F>(f));
     } else {
       constexpr auto size = [] {
         if constexpr (is_array) {
@@ -425,10 +427,10 @@ namespace mpark::patterns {
           result != detail::ProductPatternCheckResult::TooManyPatterns,
           "There are too many patterns provided to match the values.");
       using Is = std::make_index_sequence<size()>;
-      return detail::matches_impl(detail::expand_variadics(prod, Is{}),
-                                  std::forward<Values>(values),
-                                  std::forward<F>(f),
-                                  Is{});
+      return detail::try_match_impl(detail::expand_variadics(prod, Is{}),
+                                    std::forward<Values>(values),
+                                    std::forward<F>(f),
+                                    Is{});
     }
   }
 
@@ -578,34 +580,37 @@ namespace mpark::patterns {
     template <typename R, typename... Values>
     struct Match {
       private:
-      template <typename Patterns, typename F>
-      static auto try_matches(Case<Patterns, F> &&case_,
-                              std::tuple<Values &&...> &&values) {
-        auto result = matches(
-            std::move(case_).patterns, std::move(values), std::move(case_).f);
+      struct TryMatch {
+        template <typename Patterns, typename F>
+        auto operator()(Case<Patterns, F> &&case_,
+                        std::tuple<Values &&...> &&values) const {
+          auto result = try_match(
+              std::move(case_).patterns, std::move(values), std::move(case_).f);
 
-        using Result = decltype(result);
-        static_assert(is_match_result_v<Result>,
-                      "The function `matches` is required to return "
-                      " a `mpark::patterns::match_result` type. "
-                      "If you're using `std::invoke`, try using "
-                      "`mpark::patterns::match_invoke` instead.");
+          using Result = decltype(result);
+          static_assert(is_match_result_v<Result>,
+                        "The function `try_match` is required to return "
+                        " a `mpark::patterns::match_result` type. "
+                        "If you're using `std::invoke`, try using "
+                        "`mpark::patterns::match_invoke` instead.");
 
-        if constexpr (std::is_same_v<R, Deduce>) {
-          return result;
-        } else if constexpr (std::is_void_v<R>) {
-          return match_result<void>(void_{});
-        } else if constexpr (std::is_convertible_v<typename Result::type, R>) {
-          return match_result<R>(
-              [&result]() -> R { return std::move(result).get(); }());
+          if constexpr (std::is_same_v<R, Deduce>) {
+            return result;
+          } else if constexpr (std::is_void_v<R>) {
+            return match_result<void>(void_{});
+          } else if constexpr (std::is_convertible_v<typename Result::type,
+                                                     R>) {
+            return match_result<R>(
+                [&result]() -> R { return std::move(result).get(); }());
+          }
         }
-      }
+      };
 
       public:
       template <typename Patterns, typename F, typename... Cases>
       decltype(auto) operator()(Case<Patterns, F> &&case_,
                                 Cases &&... cases) && {
-        auto result = try_matches(std::move(case_), std::move(values));
+        auto result = TryMatch{}(std::move(case_), std::move(values));
         if (result) {
           return std::move(result).get();
         }

@@ -69,19 +69,19 @@ namespace mpark::patterns {
   }  // namespace detail
 
   template <typename T, typename Pattern, typename Value, typename F>
-  auto matches(const SumByType<T, Pattern> &sum, Value &&value, F &&f) {
+  auto try_match(const SumByType<T, Pattern> &sum, Value &&value, F &&f) {
     using V = decltype(detail::generic_get<T>(std::forward<Value>(value)));
     auto *v = detail::generic_get_if<T>(std::forward<Value>(value));
-    return v ? matches(sum.pattern, std::forward<V>(*v), std::forward<F>(f))
+    return v ? try_match(sum.pattern, std::forward<V>(*v), std::forward<F>(f))
              : no_match;
   }
 
   template <typename Pattern, typename Value, typename F>
-  auto matches(const SumByVisit<Pattern> &sum, Value &&value, F &&f) {
+  auto try_match(const SumByVisit<Pattern> &sum, Value &&value, F &&f) {
     using std::visit;
     return visit(
         [&](auto &&v) {
-          return matches(
+          return try_match(
               sum.pattern, std::forward<decltype(v)>(v), std::forward<F>(f));
         },
         std::forward<Value>(value));
