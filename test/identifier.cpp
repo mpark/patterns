@@ -12,12 +12,12 @@
 
 #include <gtest/gtest.h>
 
-TEST(Placeholder, Simple) {
+TEST(Identifier, Simple) {
   std::tuple<int, int, int> t = {101, 202, 101};
   std::optional<int> o = 202;
 
   using namespace mpark::patterns;
-  auto [x, y, z] = placeholders<3>();
+  IDENTIFIERS(x, y, z);
   int actual = match(t, o)(
       pattern(prod(x, x, x), some(x)) = [](auto &&) {
         return 1;
@@ -35,12 +35,12 @@ TEST(Placeholder, Simple) {
   EXPECT_EQ(3, actual);
 }
 
-TEST(Placeholder, Complex) {
+TEST(Identifier, Complex) {
   std::tuple<std::optional<int>, int> t = {{101}, 202};
   std::optional<int> o = 101;
 
   using namespace mpark::patterns;
-  auto [x, y] = placeholders<2>();
+  IDENTIFIERS(x, y);
   int actual = match(t, o)(
       pattern(prod(x(some(202)), y), x) = [](auto &&, auto&&) {
         return 1;

@@ -48,9 +48,9 @@ set(MPARK_TESTS
   array
   balance
   calc
+  identifier
   intro
   optional
-  placeholder
   prod
   regex
   sum

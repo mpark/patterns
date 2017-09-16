@@ -13,22 +13,22 @@
 
 namespace mpark::patterns::detail {
 
-  struct Void {};
+  struct void_ {};
 
   template <typename T>
-  class Forwarder {
+  class forwarder {
     private:
     template <typename U, typename Qualified>
     static constexpr bool is_enabled() {
       return std::is_constructible_v<T, Qualified> &&
-             !(std::is_constructible_v<T, Forwarder<U> &> ||
-               std::is_constructible_v<T, const Forwarder<U> &> ||
-               std::is_constructible_v<T, Forwarder<U> &&> ||
-               std::is_constructible_v<T, const Forwarder<U> &&> ||
-               std::is_convertible_v<Forwarder<U> &, T> ||
-               std::is_convertible_v<const Forwarder<U> &, T> ||
-               std::is_convertible_v<Forwarder<U> &&, T> ||
-               std::is_convertible_v<const Forwarder<U> &&, T>);
+             !(std::is_constructible_v<T, forwarder<U> &> ||
+               std::is_constructible_v<T, const forwarder<U> &> ||
+               std::is_constructible_v<T, forwarder<U> &&> ||
+               std::is_constructible_v<T, const forwarder<U> &&> ||
+               std::is_convertible_v<forwarder<U> &, T> ||
+               std::is_convertible_v<const forwarder<U> &, T> ||
+               std::is_convertible_v<forwarder<U> &&, T> ||
+               std::is_convertible_v<const forwarder<U> &&, T>);
     }
 
     template <typename U, typename Qualified>
@@ -42,20 +42,20 @@ namespace mpark::patterns::detail {
     }
 
     public:
-    constexpr Forwarder(T &&value) : value_(std::forward<T>(value)) {}
+    constexpr forwarder(T &&value) : value_(std::forward<T>(value)) {}
 
     template <typename U, std::enable_if_t<enable_explicit<U, U &&>(), int> = 0>
-    explicit Forwarder(Forwarder<U> &&that)
+    explicit forwarder(forwarder<U> &&that)
         : value_(std::move(that).forward()) {}
 
     template <typename U, std::enable_if_t<enable_implicit<U, U &&>(), int> = 0>
-    Forwarder(Forwarder<U> &&that) : value_(std::move(that).forward()) {}
+    forwarder(forwarder<U> &&that) : value_(std::move(that).forward()) {}
 
-    Forwarder(const Forwarder &) = default;
-    Forwarder(Forwarder &&) = default;
+    forwarder(const forwarder &) = default;
+    forwarder(forwarder &&) = default;
 
-    Forwarder &operator=(const Forwarder &) = delete;
-    Forwarder &operator=(Forwarder &&) = delete;
+    forwarder &operator=(const forwarder &) = delete;
+    forwarder &operator=(forwarder &&) = delete;
 
     constexpr T forward() && { return std::forward<T>(value_); }
 
@@ -64,21 +64,18 @@ namespace mpark::patterns::detail {
   };
 
   template <>
-  class Forwarder<void> {
+  class forwarder<void> {
     public:
-    constexpr Forwarder(Void) noexcept {}
+    constexpr forwarder(void_) noexcept {}
 
     template <typename U>
-    Forwarder(const Forwarder<U> &) noexcept {}
+    forwarder(forwarder<U> &&) noexcept {}
 
-    template <typename U>
-    Forwarder(Forwarder<U> &&) noexcept {}
+    forwarder(const forwarder &) noexcept = default;
+    forwarder(forwarder &&) noexcept = default;
 
-    Forwarder(const Forwarder &) noexcept = default;
-    Forwarder(Forwarder &&) noexcept = default;
-
-    Forwarder &operator=(const Forwarder &) noexcept = delete;
-    Forwarder &operator=(Forwarder &&) noexcept = delete;
+    forwarder &operator=(const forwarder &) noexcept = delete;
+    forwarder &operator=(forwarder &&) noexcept = delete;
 
     constexpr void forward() && noexcept {}
   };

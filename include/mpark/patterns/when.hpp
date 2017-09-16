@@ -19,7 +19,7 @@ namespace mpark::patterns {
     return when.condition ? match_invoke(std::forward<F>(f)) : no_match;
   }
 
-#define WHEN(condition) return When{condition} >>= [&]
+#define WHEN(condition) return mpark::patterns::When{condition} >>= [&]
 
 }  // namespace mpark::patterns
 

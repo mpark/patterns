@@ -121,7 +121,7 @@ namespace calc {
 
   std::ostream &operator<<(std::ostream &strm, const Expr &expr) {
     using namespace mpark::patterns;
-    auto [lhs, rhs] = placeholders<2>();
+    IDENTIFIERS(lhs, rhs);
     match(expr)(
         pattern(sum<int>(arg)) = [&](auto x) { strm << x; },
         pattern(sum<Plus>(prod(lhs, rhs))) = [&](auto &&lhs, auto &&rhs) {
@@ -138,7 +138,7 @@ namespace calc {
 
   int eval(const Expr &expr) {
     using namespace mpark::patterns;
-    auto [lhs, rhs] = placeholders<2>();
+    IDENTIFIERS(lhs, rhs);
     return match(expr)(
         pattern(sum<int>(arg)) = [](auto x) { return x; },
         pattern(sum<Plus>(prod(lhs, rhs))) = [](auto &&lhs, auto &&rhs) {

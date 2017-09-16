@@ -27,30 +27,28 @@ namespace mpark::patterns::detail {
   template <typename T,
             std::size_t... Is,
             typename = decltype(T{(Is, fill{})...})>
-  constexpr bool is_n_constructible_impl(std::index_sequence<Is...>,
-                                         lib::priority<0>) {
+  constexpr bool is_n_constructible(std::index_sequence<Is...>,
+                                    lib::priority<0>) {
     return true;
   }
 #pragma GCC diagnostic pop
 
   template <typename T, std::size_t... Is>
-  constexpr bool is_n_constructible_impl(std::index_sequence<Is...>,
-                                         lib::priority<1>) {
+  constexpr bool is_n_constructible(std::index_sequence<Is...>,
+                                    lib::priority<1>) {
     return false;
   }
 
   template <typename T, std::size_t N>
-  constexpr bool is_n_constructible() {
-    return is_n_constructible_impl<T>(std::make_index_sequence<N>{},
-                                      lib::priority<>{});
-  }
+  inline constexpr bool is_n_constructible_v =
+      is_n_constructible<T>(std::make_index_sequence<N>{}, lib::priority<>{});
 
   template <typename T>
-  struct AggregateSize {
+  struct aggregate_size_impl {
     template <std::size_t B, std::size_t E>
     static constexpr std::optional<std::size_t> impl() {
       constexpr std::size_t M = B + ((E - B) / 2);
-      constexpr bool is_mid_constructible = is_n_constructible<T, M>();
+      constexpr bool is_mid_constructible = is_n_constructible_v<T, M>;
       if constexpr (B == M) {
         if constexpr (is_mid_constructible) {
           return M;
@@ -58,8 +56,8 @@ namespace mpark::patterns::detail {
           return std::nullopt;
         }
       } else if constexpr (is_mid_constructible) {
-        // We recursve into `[M, E)` rather than `[M + 1, E)` since `M` could be
-        // the answer.
+        // We recursve into `[M, E)` rather than `[M + 1, E)`
+        // since `M` could be the answer.
         return impl<M, E>();
       } else if constexpr (constexpr auto lhs = impl<B, M>()) {
         return lhs;
@@ -71,7 +69,7 @@ namespace mpark::patterns::detail {
 
   template <typename T>
   inline constexpr std::size_t aggregate_size_v =
-      *AggregateSize<T>::template impl<0, sizeof(T) + 1>();
+      *aggregate_size_impl<T>::template impl<0, sizeof(T) + 1>();
 
   template <typename T>
   struct aggregate_size : lib::size_constant<aggregate_size_v<T>> {};

@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <optional>
 #include <stdexcept>
+#include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -35,10 +36,10 @@ namespace mpark::patterns {
   // The return type of `matches` functions.
 
   template <typename T>
-  struct match_result : std::optional<detail::Forwarder<T>> {
+  struct match_result : std::optional<detail::forwarder<T>> {
     using type = T;
 
-    using super = std::optional<detail::Forwarder<T>>;
+    using super = std::optional<detail::forwarder<T>>;
     using super::super;
 
     match_result(no_match_t) noexcept {}
@@ -65,7 +66,7 @@ namespace mpark::patterns {
     using R = lib::invoke_result_t<F, Args...>;
     if constexpr (std::is_void_v<R>) {
       std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
-      return match_result<void>(detail::Void{});
+      return match_result<void>(detail::void_{});
     } else if constexpr (is_match_result_v<R>) {
       return std::invoke(std::forward<F>(f), std::forward<Args>(args)...);
     } else {
@@ -90,6 +91,8 @@ namespace mpark::patterns {
         std::make_index_sequence<std::tuple_size_v<std::decay_t<Args>>>{});
   }
 
+  inline constexpr std::size_t npos = static_cast<std::size_t>(-1);
+
   // Expression Pattern
 
   template <typename ExprPattern, typename Value, typename F>
@@ -108,68 +111,92 @@ namespace mpark::patterns {
     return match_invoke(std::forward<F>(f));
   }
 
-  // Placeholder Pattern
+  // Identifier Pattern
 
   template <std::size_t I, typename Pattern>
-  struct Placeholder {
-    Placeholder(const Placeholder &) = delete;
-    Placeholder &operator=(const Placeholder &) = delete;
+  struct Identifier {
+    Identifier(const Identifier &) = delete;
+    Identifier &operator=(const Identifier &) = delete;
 
     const Pattern &pattern;
   };
 
   template <std::size_t I>
-  struct Placeholder<I, Wildcard> {
-    constexpr Placeholder(int) noexcept {}
+  struct Identifier<I, Wildcard> {
+    constexpr Identifier(int) noexcept {}
 
-    Placeholder(const Placeholder &) = delete;
-    Placeholder &operator=(const Placeholder &) = delete;
+    Identifier(const Identifier &) = delete;
+    Identifier &operator=(const Identifier &) = delete;
 
     template <typename Pattern>
     auto operator()(const Pattern &pattern_) const noexcept {
-      return Placeholder<I, Pattern>{pattern_};
+      return Identifier<I, Pattern>{pattern_};
     }
 
     const Wildcard &pattern = _;
   };
 
-  inline constexpr Placeholder<static_cast<std::size_t>(-1), Wildcard> arg{0};
+  inline constexpr Identifier<npos, Wildcard> arg{0};
 
-  template <std::size_t... Is>
-  constexpr std::tuple<Placeholder<Is, Wildcard>...> placeholders_impl(
-      std::index_sequence<Is...>) {
-    return {Is...};
-  }
+  namespace detail {
 
-  template <std::size_t N>
-  constexpr auto placeholders() {
-    return placeholders_impl(std::make_index_sequence<N>{});
-  }
+    template <std::size_t... Is>
+    constexpr std::tuple<Identifier<Is, Wildcard>...> identifiers_impl(
+        std::index_sequence<Is...>) {
+      return {Is...};
+    }
+
+    template <std::size_t N>
+    constexpr auto identifiers() {
+      return identifiers_impl(std::make_index_sequence<N>{});
+    }
+
+    constexpr std::size_t count_args(std::string_view sv) {
+      std::size_t result = 1;
+      for (char ch : sv) {
+        if (ch == ',') {
+          ++result;
+        }
+      }
+      return result;
+    }
+
+  }  // namespace detail
+
+#define IDENTIFIERS(...)                                     \
+  auto [__VA_ARGS__] = mpark::patterns::detail::identifiers< \
+      mpark::patterns::detail::count_args(std::string_view(#__VA_ARGS__))>()
 
   namespace detail {
 
     template <std::size_t I, typename T>
-    struct IndexedForwarder : Forwarder<T> {
-      using super = Forwarder<T>;
+    struct indexed_forwarder : forwarder<T> {
+      using super = forwarder<T>;
       using super::super;
     };
 
     template <typename T>
-    inline constexpr std::size_t index_v = -1;
+    inline constexpr bool is_indexed_forwarder_v = false;
 
     template <std::size_t I, typename T>
-    inline constexpr std::size_t index_v<IndexedForwarder<I, T>> = I;
+    inline constexpr bool is_indexed_forwarder_v<indexed_forwarder<I, T>> = true;
+
+    template <typename T>
+    inline constexpr std::size_t index_v = npos;
+
+    template <std::size_t I, typename T>
+    inline constexpr std::size_t index_v<indexed_forwarder<I, T>> = I;
 
   }  // namespace detail
 
   template <std::size_t I, typename Pattern, typename Value, typename F>
-  auto matches(const Placeholder<I, Pattern> &ph, Value &&value, F &&f) {
+  auto matches(const Identifier<I, Pattern> &identifier, Value &&value, F &&f) {
     return matches(
-        ph.pattern, std::forward<Value>(value), [&](auto &&... args) {
-          return match_invoke(
-              std::forward<F>(f),
-              detail::IndexedForwarder<I, Value &&>{std::forward<Value>(value)},
-              std::forward<decltype(args)>(args)...);
+        identifier.pattern, std::forward<Value>(value), [&](auto &&... args) {
+          return match_invoke(std::forward<F>(f),
+                              detail::indexed_forwarder<I, Value &&>{
+                                  std::forward<Value>(value)},
+                              std::forward<decltype(args)>(args)...);
         });
   }
 
@@ -199,43 +226,52 @@ namespace mpark::patterns {
     return Prod<Patterns...>{std::tie(patterns...)};
   }
 
+  template <typename T, std::size_t = sizeof(std::tuple_size<T>)>
+  constexpr bool is_tuple_like(lib::priority<0>) noexcept { return true; }
+
+  template <typename T>
+  constexpr bool is_tuple_like(lib::priority<1>) noexcept { return false; }
+
+  template <typename T>
+  inline constexpr bool is_tuple_like_v = is_tuple_like<T>(lib::priority<>{});
+
   namespace detail {
 
-    // Both (l/r)value-ref versions are handled for C-style array because
-    // `std::forward<Array>(array)[I]` always yields an lvalue-ref on GCC.
-
-    template <std::size_t I, typename T, std::size_t N>
-    T &generic_get_impl(T (&array)[N], lib::priority<0>) noexcept {
-      return array[I];
-    }
-
-    template <std::size_t I, typename T, std::size_t N>
-    T &&generic_get_impl(T (&&array)[N], lib::priority<0>) noexcept {
-      return std::move(array[I]);
-    }
+    template <std::size_t I,
+              typename T,
+              typename = decltype(std::declval<T>().template get<I>())>
+    constexpr bool has_get_member(lib::priority<0>) noexcept { return true; }
 
     template <std::size_t I, typename T>
-    auto generic_get_impl(T &&t, lib::priority<1>) noexcept
-        -> decltype(std::forward<T>(t).template get<I>()) {
-      return std::forward<T>(t).template get<I>();
-    }
+    constexpr bool has_get_member(lib::priority<1>) noexcept { return false; }
 
     template <std::size_t I, typename T>
-    decltype(auto) generic_get_impl(T &&t, lib::priority<2>) noexcept {
-      using std::get;
-      return get<I>(std::forward<T>(t));
-    }
+    inline constexpr bool has_get_member_v =
+        has_get_member<I, T>(lib::priority<>{});
 
     template <std::size_t I, typename T>
     decltype(auto) generic_get(T &&t) noexcept {
-      return generic_get_impl<I>(std::forward<T>(t), lib::priority<>{});
+      if constexpr (std::is_array_v<std::remove_reference_t<T>>) {
+        // We handle the forwarding explicitly because `std::forward<T>(t)[I]`
+        // always yields an lvalue-ref on GCC.
+        if constexpr (std::is_rvalue_reference_v<T &&>) {
+          return std::move(t[I]);
+        } else {
+          return t[I];
+        }
+      } else if constexpr (has_get_member_v<I, std::decay_t<T>>) {
+        return std::forward<T>(t).template get<I>();
+      } else {
+        using std::get;
+        return get<I>(std::forward<T>(t));
+      }
     }
 
     template <typename... Patterns, typename Values, typename F>
-    auto matches_recur(const Prod<Patterns...> &,
-                       Values &&,
-                       F &&f,
-                       std::index_sequence<>) {
+    auto matches_impl(const Prod<Patterns...> &,
+                      Values &&,
+                      F &&f,
+                      std::index_sequence<>) {
       return match_invoke(std::forward<F>(f));
     }
 
@@ -244,15 +280,15 @@ namespace mpark::patterns {
               typename F,
               std::size_t I,
               std::size_t... Is>
-    auto matches_recur(const Prod<Patterns...> &prod,
-                       Values &&values,
-                       F &&f,
-                       std::index_sequence<I, Is...>) {
+    auto matches_impl(const Prod<Patterns...> &prod,
+                      Values &&values,
+                      F &&f,
+                      std::index_sequence<I, Is...>) {
       return matches(
           std::get<I>(prod.patterns),
           generic_get<I>(std::forward<Values>(values)),
           [&](auto &&... head_args) {
-            return matches_recur(
+            return matches_impl(
                 prod,
                 std::forward<Values>(values),
                 [&](auto &&... tail_args) {
@@ -265,98 +301,135 @@ namespace mpark::patterns {
           });
     }
 
-    template <std::size_t N, typename... Patterns>
-    constexpr bool matches_check() noexcept {
+    enum class ProductPatternCheckResult {
+      Success,
+      TooManyVariadics,
+      NotEnoughPatterns,
+      TooManyPatterns
+    };
+
+    template <typename... Patterns>
+    constexpr std::size_t find_variadic() {
       constexpr std::size_t size = sizeof...(Patterns);
-      if constexpr (size > N + 1) {
-        return false;
-      }
-      constexpr std::array<bool, sizeof...(Patterns)> bs = {
-        { is_variadic_v<Patterns>... }
-      };
+      constexpr std::array<bool, size> bs = {{is_variadic_v<Patterns>...}};
       for (std::size_t i = 0; i < size; ++i) {
         if (bs[i]) {
-          return i == size - 1;
+          return i;
         }
       }
-      return size == N;
+      return npos;
     }
 
-    template <typename Pattern>
-    const auto &get_pattern(const Variadic<Pattern> &variadic) noexcept {
-      return variadic.pattern;
-    }
-
-    template <typename Pattern>
-    const auto &get_pattern(const Pattern &pattern) noexcept {
-      return pattern;
+    template <std::size_t N, typename... Patterns>
+    constexpr ProductPatternCheckResult product_pattern_check() noexcept {
+      constexpr std::size_t size = sizeof...(Patterns);
+      if constexpr (size == 0) {
+        return N == 0 ? ProductPatternCheckResult::Success
+                      : ProductPatternCheckResult::NotEnoughPatterns;
+      } else {
+        constexpr std::array<bool, size> bs = {{is_variadic_v<Patterns>...}};
+        std::size_t index = npos;
+        for (std::size_t i = 0; i < size; ++i) {
+          if (bs[i]) {
+            if (index == npos) {
+              index = i;
+            } else {
+              return ProductPatternCheckResult::TooManyVariadics;
+            }
+          }
+        }
+        if (index == npos) {  // non-variadic
+          if constexpr (N > size) {
+            return ProductPatternCheckResult::NotEnoughPatterns;
+          } else if constexpr (N < size) {
+            return ProductPatternCheckResult::TooManyPatterns;
+          } else {
+            return ProductPatternCheckResult::Success;
+          }
+        } else {  // variadic
+          if constexpr (N + 1 < size) {
+            return ProductPatternCheckResult::TooManyPatterns;
+          } else {
+            return ProductPatternCheckResult::Success;
+          }
+        }
+      }
     }
 
     template <typename... Patterns, std::size_t... Is>
-    auto canonicalize(const Prod<Patterns...> &p,
-                      std::index_sequence<Is...>) noexcept {
-      constexpr std::size_t size = sizeof...(Patterns);
-      return prod(
-          get_pattern(std::get<(Is < size ? Is : size - 1)>(p.patterns))...);
-    }
-
-    template <typename... Patterns,
-              typename Array,
-              typename F,
-              std::enable_if_t<std::is_array_v<std::remove_reference_t<Array>>,
-                               int> = 0>
-    auto matches_impl(const Prod<Patterns...> &prod,
-                      Array &&array,
-                      F &&f,
-                      lib::priority<0>) {
-      constexpr std::size_t size =
-          std::extent_v<std::remove_reference_t<Array>>;
-      static_assert(matches_check<size, Patterns...>());
-      using Is = std::make_index_sequence<size>;
-      return matches_recur(canonicalize(prod, Is{}),
-                           std::forward<Array>(array),
-                           std::forward<F>(f),
-                           Is{});
-    }
-
-    template <typename... Patterns,
-              typename Tuple,
-              typename F,
-              std::size_t = sizeof(std::tuple_size<std::decay_t<Tuple>>)>
-    auto matches_impl(const Prod<Patterns...> &prod,
-                      Tuple &&tuple_like,
-                      F &&f,
-                      lib::priority<1>) {
-      constexpr std::size_t size = std::tuple_size_v<std::decay_t<Tuple>>;
-      static_assert(matches_check<size, Patterns...>());
-      using Is = std::make_index_sequence<size>;
-      return matches_recur(canonicalize(prod, Is{}),
-                           std::forward<Tuple>(tuple_like),
-                           std::forward<F>(f),
-                           Is{});
-    }
-
-    template <typename... Patterns, typename Aggregate, typename F>
-    auto matches_impl(const Prod<Patterns...> &prod,
-                      Aggregate &&aggregate,
-                      F &&f,
-                      lib::priority<2>) {
-      using Decayed = std::decay_t<Aggregate>;
-      static_assert(std::is_aggregate_v<Decayed>);
-      static_assert(std::is_copy_constructible_v<Decayed>);
-      return matches(prod,
-                     as_tuple(std::forward<Aggregate>(aggregate)),
-                     std::forward<F>(f));
+    auto expand_variadics(const Prod<Patterns...> &p,
+                          std::index_sequence<Is...>) noexcept {
+      constexpr std::size_t index = find_variadic<Patterns...>();
+      constexpr std::size_t num_values = sizeof...(Is);
+      constexpr std::size_t num_patterns = sizeof...(Patterns);
+      if constexpr (index == npos) {
+        static_assert(num_values == num_patterns);
+        return p;
+      } else {
+        if constexpr (num_values < num_patterns) {
+          static_assert(num_values == num_patterns - 1);
+          return prod(std::get<(index <= Is ? Is + 1 : Is)>(p.patterns)...);
+        } else {
+          constexpr std::size_t diff = num_values - num_patterns;
+          auto get_pattern = [](auto &&pattern) -> auto && {
+            if constexpr (is_variadic_v<std::decay_t<decltype(pattern)>>) {
+              return pattern.pattern;
+            } else {
+              return pattern;
+            }
+          };
+          auto get_index = [](std::size_t i) {
+            if (i < index) {
+              return i;
+            } else if (index <= i && i <= index + diff) {
+              return index;
+            } else {
+              return i - diff;
+            }
+          };
+          return prod(get_pattern(std::get<get_index(Is)>(p.patterns))...);
+        }
+      }
     }
 
   }  // namespace detail
 
   template <typename... Patterns, typename Values, typename F>
   auto matches(const Prod<Patterns...> &prod, Values &&values, F &&f) {
-    return detail::matches_impl(prod,
-                                std::forward<Values>(values),
-                                std::forward<F>(f),
-                                lib::priority<>{});
+    constexpr bool is_array = std::is_array_v<std::remove_reference_t<Values>>;
+    constexpr bool is_tuple_like = is_tuple_like_v<std::decay_t<Values>>;
+    if constexpr (!is_array && !is_tuple_like) {
+      using Aggregate = std::decay_t<Values>;
+      static_assert(std::is_aggregate_v<Aggregate>);
+      static_assert(std::is_copy_constructible_v<Aggregate>);
+      return matches(prod,
+                     detail::as_tuple(std::forward<Values>(values)),
+                     std::forward<F>(f));
+    } else {
+      constexpr std::size_t size = [] {
+        if constexpr (is_array) {
+          return std::extent_v<std::remove_reference_t<Values>>;
+        } else if constexpr (is_tuple_like) {
+          return std::tuple_size_v<std::decay_t<Values>>;
+        }
+      }();
+      constexpr auto result =
+          detail::product_pattern_check<size, Patterns...>();
+      static_assert(
+          result != detail::ProductPatternCheckResult::TooManyVariadics,
+          "The variadic pattern can only appear once in a product pattern.");
+      static_assert(
+          result != detail::ProductPatternCheckResult::NotEnoughPatterns,
+          "There are not enough patterns provided to match the values.");
+      static_assert(
+          result != detail::ProductPatternCheckResult::TooManyPatterns,
+          "There are too many patterns provided to match the values.");
+      using Is = std::make_index_sequence<size>;
+      return detail::matches_impl(detail::expand_variadics(prod, Is{}),
+                                  std::forward<Values>(values),
+                                  std::forward<F>(f),
+                                  Is{});
+    }
   }
 
   // `match` DSL.
@@ -390,7 +463,7 @@ namespace mpark::patterns {
     auto insert(
         lib::list<lib::indexed_type<Q, std::index_sequence<Is...>>, Tail...>) {
       using Head = lib::indexed_type<Q, std::index_sequence<Is...>>;
-      if constexpr (P == static_cast<std::size_t>(-1)) {
+      if constexpr (P == npos) {
         return lib::
             list<Head, Tail..., lib::indexed_type<P, std::index_sequence<I>>>{};
       } else if constexpr (P == Q) {
@@ -425,10 +498,10 @@ namespace mpark::patterns {
     //
     //   The type of arguments passed to the intermediate lambda are
     //   ```
-    //     IndexedForwarder<0, int&&>
-    //     IndexedForwarder<-1, int&&>
-    //     IndexedForwarder<0, int&&>
-    //     IndexedForwarder<1, int&&>
+    //     indexed_forwarder<0, int&&>
+    //     indexed_forwarder<npos, int&&>
+    //     indexed_forwarder<0, int&&>
+    //     indexed_forwarder<1, int&&>
     //   ```
     //
     //   We want to take this sequence of types and return `[[0, 2], [1], [3]]`.
@@ -443,7 +516,7 @@ namespace mpark::patterns {
                                std::index_sequence_for<Ts...>{}));
 
     template <typename T>
-    inline constexpr std::size_t front_v = -1;
+    inline constexpr std::size_t front_v = npos;
 
     template <std::size_t I, std::size_t... Is>
     inline constexpr std::size_t front_v<std::index_sequence<I, Is...>> = I;
@@ -469,17 +542,6 @@ namespace mpark::patterns {
     template <typename Patterns, typename F>
     struct Case { Patterns patterns; F f; };
 
-    template <typename Arg>
-    Arg &&fwd(Arg &&arg) {
-      return std::forward<Arg>(arg);
-    }
-
-    template <std::size_t I, typename T>
-    T fwd(IndexedForwarder<I, T> &&arg) {
-      static_assert(std::is_reference_v<T>);
-      return std::move(arg).forward();
-    }
-
     template <typename... Patterns>
     struct Pattern {
       template <typename F>
@@ -490,8 +552,16 @@ namespace mpark::patterns {
         auto f_ = [&](auto &&... args) {
           using GroupedIndices =
               group_indices_t<std::decay_t<decltype(args)>...>;
-          auto args_ =
-              std::forward_as_tuple(fwd(std::forward<decltype(args)>(args))...);
+          auto args_ = std::forward_as_tuple([](auto &&arg) -> auto && {
+            if constexpr (is_indexed_forwarder_v<std::decay_t<decltype(arg)>>) {
+              static_assert(std::is_rvalue_reference_v<decltype(arg)>);
+              static_assert(
+                  std::is_reference_v<decltype(std::move(arg).forward())>);
+              return std::move(arg).forward();
+            } else {
+              return std::forward<decltype(arg)>(arg);
+            }
+          }(std::forward<decltype(args)>(args))...);
           return equals(args_, GroupedIndices{})
                      ? match_apply(std::forward<F>(f),
                                    std::move(args_),
@@ -524,7 +594,7 @@ namespace mpark::patterns {
         if constexpr (std::is_same_v<R, Deduce>) {
           return result;
         } else if constexpr (std::is_void_v<R>) {
-          return match_result<void>(Void{});
+          return match_result<void>(void_{});
         } else if constexpr (std::is_convertible_v<typename Result::type, R>) {
           return match_result<R>(
               [&result]() -> R { return std::move(result).get(); }());
