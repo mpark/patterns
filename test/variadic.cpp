@@ -63,11 +63,20 @@ TEST(Variadic, Visit) {
 }
 
 TEST(Variadic, Middle) {
-  std::tuple<int, int, std::string, int> tuple = {42, 101, "hello", 42};
+  std::tuple<int, int, int, int> tuple = {42, 101, 101, 42};
 
   using namespace mpark::patterns;
-  IDENTIFIERS(x);
-  match(tuple)(pattern(prod(x, variadic(arg), x)) = [](auto, auto... args) {
-    static_assert(sizeof...(args) == 2);
-  });
+  IDENTIFIERS(x, y, z);
+  int result = match(tuple)(
+      pattern(prod(variadic(x))) = [](auto) { return 1; },
+      pattern(prod(x, variadic(arg), x)) = [](auto, auto... args) {
+        static_assert(sizeof...(args) == 2);
+        return 2;
+      },
+      pattern(prod(x, y, y, variadic(arg), x)) = [](auto, auto, auto... args) {
+        static_assert(sizeof...(args) == 0);
+        return 3;
+      });
+
+  EXPECT_EQ(2, result);
 }
