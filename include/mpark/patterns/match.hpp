@@ -151,10 +151,10 @@ namespace mpark::patterns {
       return identifiers_impl(std::make_index_sequence<N>{});
     }
 
-    constexpr std::size_t count_args(std::string_view sv) {
+    constexpr std::size_t count_args(const char *s) {
       std::size_t result = 1;
-      for (char ch : sv) {
-        if (ch == ',') {
+      for (const char *iter = s; iter && *iter != '\0'; ++iter) {
+        if (*iter == ',') {
           ++result;
         }
       }
@@ -165,7 +165,7 @@ namespace mpark::patterns {
 
 #define IDENTIFIERS(...)                                     \
   auto [__VA_ARGS__] = mpark::patterns::detail::identifiers< \
-      mpark::patterns::detail::count_args(std::string_view(#__VA_ARGS__))>()
+      mpark::patterns::detail::count_args(#__VA_ARGS__)>()
 
   namespace detail {
 
