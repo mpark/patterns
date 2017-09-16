@@ -406,15 +406,15 @@ namespace mpark::patterns {
                      detail::as_tuple(std::forward<Values>(values)),
                      std::forward<F>(f));
     } else {
-      constexpr std::size_t size = [] {
+      constexpr auto size = [] {
         if constexpr (is_array) {
           return std::extent<std::remove_reference_t<Values>>{};
         } else if constexpr (is_tuple_like) {
           return std::tuple_size<std::decay_t<Values>>{};
         }
-      }()();
+      }();
       constexpr auto result =
-          detail::product_pattern_check<size, Patterns...>();
+          detail::product_pattern_check<size(), Patterns...>();
       static_assert(
           result != detail::ProductPatternCheckResult::TooManyVariadics,
           "The variadic pattern can only appear once in a product pattern.");
@@ -424,7 +424,7 @@ namespace mpark::patterns {
       static_assert(
           result != detail::ProductPatternCheckResult::TooManyPatterns,
           "There are too many patterns provided to match the values.");
-      using Is = std::make_index_sequence<size>;
+      using Is = std::make_index_sequence<size()>;
       return detail::matches_impl(detail::expand_variadics(prod, Is{}),
                                   std::forward<Values>(values),
                                   std::forward<F>(f),
