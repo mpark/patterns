@@ -66,7 +66,7 @@ TEST(Variadic, Middle) {
   std::tuple<int, int, int, int> tuple = {42, 101, 101, 42};
 
   using namespace mpark::patterns;
-  IDENTIFIERS(x, y, z);
+  IDENTIFIERS(x, y);
   int result = match(tuple)(
       pattern(ds(variadic(x))) = [](auto) { return 1; },
       pattern(ds(x, variadic(arg), x)) = [](auto, auto... args) {
