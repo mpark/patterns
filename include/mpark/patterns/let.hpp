@@ -8,6 +8,7 @@
 #ifndef MPARK_PATTERNS_LET_HPP
 #define MPARK_PATTERNS_LET_HPP
 
+#include <functional>
 #include <type_traits>
 #include <utility>
 
