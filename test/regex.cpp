@@ -33,7 +33,7 @@ bool operator==(const Token &lhs, const Token &rhs) {
 
 bool operator!=(const Token &lhs, const Token &rhs) { return !(lhs == rhs); }
 
-TEST(Regex, NoSubMatches_String) {
+TEST(Regex, String) {
   auto lex = [](std::string_view sv) {
     using namespace mpark::patterns;
     return match(sv)(
@@ -62,7 +62,7 @@ TEST(Regex, NoSubMatches_String) {
   EXPECT_EQ(lex("-"), Token(Token::OP, "-"));
 }
 
-TEST(Regex, NoSubMatches_Stream) {
+TEST(Regex, Stream) {
   std::regex id(R"~([_a-zA-Z]\w*)~");
   std::regex num(R"~(-?\d+)~");
   std::regex op(R"~([*|/|+|-])~");
@@ -92,86 +92,6 @@ TEST(Regex, NoSubMatches_Stream) {
         pattern(arg(re.match(op))) = [](const auto &lexeme) {
           return Token(Token::OP, lexeme);
         }));
-  }
-
-  EXPECT_EQ(expected, actual);
-}
-
-TEST(Regex, SubMatches_String) {
-  std::regex hex(R"~(#?([a-f0-9]{6}|[a-f0-9]{3}))~");
-  std::regex email(
-      R"~(([a-z0-9_\.-]+)@([\da-z\.-]+)\.([a-z\.]{2,6}))~");
-
-  auto test = [&](std::string_view sv) {
-    using namespace mpark::patterns;
-    return match(sv)(pattern(anyof(re.match(hex, sub_matches),
-                                   re.match(email, sub_matches))) =
-                         [](std::cmatch &&results) {
-                           std::vector<std::string> result;
-                           for (std::size_t i = 1; i < results.size(); ++i) {
-                             result.emplace_back(results[i]);
-                           }
-                           return result;
-                         });
-  };
-
-  EXPECT_EQ(std::vector<std::string>({"a3c113"}), test("#a3c113"));
-  EXPECT_EQ(std::vector<std::string>({"mcypark", "gmail", "com"}),
-            test("mcypark@gmail.com"));
-}
-
-TEST(Regex, Captures_Stream) {
-  std::regex id(R"~(^[_a-zA-Z]\w*)~");
-  std::regex num(R"~(^-?\d+)~");
-  std::regex op(R"~(^[*|/|+|-])~");
-  std::regex ws(R"~(^\s+)~");
-
-  std::string s("foo +\t-42  - x \n\n * 101 / bar");
-
-  std::vector<Token> expected = {{Token::ID, "foo"},
-                                 {Token::WS, " "},
-                                 {Token::OP, "+"},
-                                 {Token::WS, "\t"},
-                                 {Token::NUM, "-42"},
-                                 {Token::WS, "  "},
-                                 {Token::OP, "-"},
-                                 {Token::WS, " "},
-                                 {Token::ID, "x"},
-                                 {Token::WS, " \n\n "},
-                                 {Token::OP, "*"},
-                                 {Token::WS, " "},
-                                 {Token::NUM, "101"},
-                                 {Token::WS, " "},
-                                 {Token::OP, "/"},
-                                 {Token::WS, " "},
-                                 {Token::ID, "bar"}};
-
-  std::vector<Token> actual;
-  while (!s.empty()) {
-    using namespace mpark::patterns;
-    Token token = match(s)(
-        pattern(re.search(id, sub_matches)) = [&s](std::smatch &&results) {
-          std::string lexeme = std::move(results)[0];
-          s = results.suffix();
-          return Token(Token::ID, std::move(lexeme));
-        },
-        pattern(re.search(num, sub_matches)) = [&s](std::smatch &&results) {
-          std::string lexeme = std::move(results)[0];
-          s = results.suffix();
-          return Token(Token::NUM, std::move(lexeme));
-        },
-        pattern(re.search(op, sub_matches)) = [&s](std::smatch &&results) {
-          std::string lexeme = std::move(results)[0];
-          s = results.suffix();
-          return Token(Token::OP, std::move(lexeme));
-        },
-        pattern(re.search(ws, sub_matches)) = [&s](std::smatch &&results) {
-          std::string lexeme = std::move(results)[0];
-          s = results.suffix();
-          return Token(Token::WS, std::move(lexeme));
-        });
-
-    actual.push_back(std::move(token));
   }
 
   EXPECT_EQ(expected, actual);
