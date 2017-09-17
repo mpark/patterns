@@ -8,7 +8,6 @@
 #ifndef MPARK_PATTERNS_VIS_HPP
 #define MPARK_PATTERNS_VIS_HPP
 
-#include <type_traits>
 #include <utility>
 #include <variant>
 

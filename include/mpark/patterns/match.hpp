@@ -245,17 +245,32 @@ namespace mpark::patterns {
 
   namespace detail {
 
+    enum class DetectResult { Member, NonMember, None };
+
+    using std::get;
+
     template <std::size_t I,
               typename T,
               typename = decltype(std::declval<T>().template get<I>())>
-    constexpr bool has_member_get(lib::priority<0>) noexcept { return true; }
+    constexpr DetectResult detect_get(lib::priority<0>) noexcept {
+      return DetectResult::Member;
+    }
+
+    template <std::size_t I,
+              typename T,
+              typename = decltype(get<I>(std::declval<T>()))>
+    constexpr DetectResult detect_get(lib::priority<1>) noexcept {
+      return DetectResult::NonMember;
+    }
 
     template <std::size_t I, typename T>
-    constexpr bool has_member_get(lib::priority<1>) noexcept { return false; }
+    constexpr DetectResult detect_get(lib::priority<2>) noexcept {
+      return DetectResult::None;
+    }
 
     template <std::size_t I, typename T>
-    inline constexpr bool has_member_get_v =
-        has_member_get<I, T>(lib::priority<>{});
+    inline constexpr DetectResult detect_get_v =
+        detect_get<I, T>(lib::priority<>{});
 
     template <typename... Patterns, typename Values, typename F>
     auto try_match_impl(const Ds<Patterns...> &,
@@ -286,14 +301,19 @@ namespace mpark::patterns {
                 return values[I];
               }
             } else if constexpr (is_tuple_like_v<std::decay_t<Values>>) {
-              if constexpr (detail::has_member_get_v<I, Values>) {
+              constexpr auto result = detail::detect_get_v<I, Values>;
+              if constexpr (result == DetectResult::Member) {
                 return std::forward<Values>(values).template get<I>();
-              } else {
+              } else if constexpr (result == DetectResult::NonMember) {
                 using std::get;
                 return get<I>(std::forward<Values>(values));
+              } else {
+                static_assert(lib::false_v<Values>,
+                              "The value attempting to be matched against a "
+                              "`ds` pattern has a specialization for "
+                              "`std::tuple_size`, but does not have a member "
+                              "nor non-member `get` function available.");
               }
-            } else {
-
             }
           }(),
           [&](auto &&... head_args) {

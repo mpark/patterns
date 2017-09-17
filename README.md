@@ -309,11 +309,12 @@ An _as pattern_ matches values that is capable of holding a value of multiple ty
 Given a value `x` of type `T`, and a pattern `as<U>(<pattern>)`,
 `T` must satisfy one of the following conditions:
   1. `std::is_polymorphic_v<T> == true`, or
-  2. `x.get_if<U>()` or `get_if<U>(&x)` is a valid expression, or
+  2. `std::is_class_v<T> == true` and `std::variant_size<T>` is a complete type, or
   3. `x.any_cast<U>()` or `any_cast<U>(&x)` is a valid expression
 
 - If (1), `dynamic_cast<U'>(&x)` must be a valid expression,
   where `U'` is pointer to `U` with the same cv-qualifiers as `decltype(x)`
+- If (2), `x.get_if<U>()` or `get_if<U>(&x)` must be a valid expression
 
 #### Syntax
 
