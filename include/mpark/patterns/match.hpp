@@ -248,14 +248,14 @@ namespace mpark::patterns {
     template <std::size_t I,
               typename T,
               typename = decltype(std::declval<T>().template get<I>())>
-    constexpr bool has_get_member(lib::priority<0>) noexcept { return true; }
+    constexpr bool has_member_get(lib::priority<0>) noexcept { return true; }
 
     template <std::size_t I, typename T>
-    constexpr bool has_get_member(lib::priority<1>) noexcept { return false; }
+    constexpr bool has_member_get(lib::priority<1>) noexcept { return false; }
 
     template <std::size_t I, typename T>
-    inline constexpr bool has_get_member_v =
-        has_get_member<I, T>(lib::priority<>{});
+    inline constexpr bool has_member_get_v =
+        has_member_get<I, T>(lib::priority<>{});
 
     template <typename... Patterns, typename Values, typename F>
     auto try_match_impl(const Ds<Patterns...> &,
@@ -286,7 +286,7 @@ namespace mpark::patterns {
                 return values[I];
               }
             } else if constexpr (is_tuple_like_v<std::decay_t<Values>>) {
-              if constexpr (detail::has_get_member_v<I, Values>) {
+              if constexpr (detail::has_member_get_v<I, Values>) {
                 return std::forward<Values>(values).template get<I>();
               } else {
                 using std::get;

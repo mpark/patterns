@@ -306,30 +306,20 @@ An _as pattern_ matches values that is capable of holding a value of multiple ty
 
 #### Requirements
 
-Given a value `x` of type `T`, `T` must satisfy one of the following conditions:
+Given a value `x` of type `T`, and a pattern `as<U>(<pattern>)`,
+`T` must satisfy one of the following conditions:
   1. `std::is_polymorphic_v<T> == true`, or
-  2. `std::is_class_v<T> == true` and `std::variant_size<T>` is a complete type
+  2. `x.get_if<U>()` or `get_if<U>(&x)` is a valid expression, or
+  3. `x.any_cast<U>()` or `any_cast<U>(&x)` is a valid expression
 
-Given `as<U>(<pattern>)`,
-  - If (1), `dynamic_cast<U'>(&x)` must be a valid expression,
-    where `U'` is pointer to `U` with the same cv-qualifiers as `decltype(x)`
-  - If (2), `x.get_if<U>()` or `get_if<U>(&x)` must be a valid expression
+- If (1), `dynamic_cast<U'>(&x)` must be a valid expression,
+  where `U'` is pointer to `U` with the same cv-qualifiers as `decltype(x)`
 
 #### Syntax
 
   - `as<U>(<pattern>)`
 
 #### Examples
-
-```cpp
-using str = std::string;
-std::variant<int, str> v = 42;
-
-using namespace mpark::patterns;
-match(v)(pattern(as<int>(_)) = [] { std::cout << "int\n"; },
-         pattern(as<str>(_)) = [] { std::cout << "str\n"; });
-// prints: "int"
-```
 
 ```cpp
 struct Shape { virtual ~Shape() = default; };
@@ -342,6 +332,26 @@ using namespace mpark::patterns;
 match(shape)(pattern(some(as<Circle>(_))) = [] { std::cout << "Circle\n"; },
              pattern(some(as<Square>(_))) = [] { std::cout << "Square\n"; });
 // prints: "Square"
+```
+
+```cpp
+using str = std::string;
+std::variant<int, str> v = 42;
+
+using namespace mpark::patterns;
+match(v)(pattern(as<int>(_)) = [] { std::cout << "int\n"; },
+         pattern(as<str>(_)) = [] { std::cout << "str\n"; });
+// prints: "int"
+```
+
+```cpp
+using str = std::string;
+std::any a = str("hello");
+
+using namespace mpark::patterns;
+match(a)(pattern(as<int>(_)) = [] { std::cout << "int\n"; },
+         pattern(as<str>(_)) = [] { std::cout << "str\n"; });
+// prints: "str"
 ```
 
 ### Visit Pattern
@@ -369,8 +379,9 @@ using str = std::string;
 std::variant<int, str> v = "hello world!";
 
 struct Visitor {
-  void operator()(int n) const { std::cout << "int: " << n << '\n'; }
-  void operator()(const str& s) const { std::cout << "str: " << s << '\n'; }
+  void operator()(int n) const { std::cout << "int: " << n << '\n';
+}
+void operator()(const str &s) const { std::cout << "str: " << s << '\n'; }
 };
 
 using namespace mpark::patterns;

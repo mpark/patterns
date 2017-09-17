@@ -7,11 +7,37 @@
 
 #include <mpark/patterns.hpp>
 
+#include <any>
 #include <string>
 #include <variant>
 #include <vector>
 
 #include <gtest/gtest.h>
+
+struct Shape { virtual ~Shape() = default; };
+
+struct Circle : Shape {};
+struct Square : Shape {};
+struct Triangle : Shape {};
+
+TEST(As, Polymorphic_Reference) {
+  Circle circle;
+  const Shape& shape = circle;
+  using namespace mpark::patterns;
+  int result = match(shape)(pattern(as<Circle>(_)) = [] { return 1; },
+                            pattern(as<Square>(_)) = [] { return 2; },
+                            pattern(as<Triangle>(_)) = [] { return 3; });
+
+  EXPECT_EQ(1, result);
+}
+
+TEST(As, Polymorphic_Pointer) {
+  std::unique_ptr<Shape> shape = std::make_unique<Circle>();
+  using namespace mpark::patterns;
+  match(shape)(pattern(some(as<Circle>(_))) = [] { return 1; },
+               pattern(some(as<Square>(_))) = [] { return 2; },
+               pattern(some(as<Triangle>(_))) = [] { return 3; });
+}
 
 TEST(As, Variant_Unary) {
   std::variant<int, std::string> v = 42;
@@ -50,27 +76,13 @@ TEST(As, Variant_Binary) {
   }
 }
 
-struct Shape { virtual ~Shape() = default; };
+TEST(As, Any) {
+  using str = std::string;
 
-struct Circle : Shape {};
-struct Square : Shape {};
-struct Triangle : Shape {};
+  std::any a = str("hello");
 
-TEST(As, Inheritance_Reference) {
-  Circle circle;
-  const Shape& shape = circle;
   using namespace mpark::patterns;
-  int result = match(shape)(pattern(as<Circle>(_)) = [] { return 1; },
-                            pattern(as<Square>(_)) = [] { return 2; },
-                            pattern(as<Triangle>(_)) = [] { return 3; });
-
-  EXPECT_EQ(1, result);
-}
-
-TEST(As, Inheritance_Pointer) {
-  std::unique_ptr<Shape> shape = std::make_unique<Circle>();
-  using namespace mpark::patterns;
-  match(shape)(pattern(some(as<Circle>(_))) = [] { return 1; },
-               pattern(some(as<Square>(_))) = [] { return 2; },
-               pattern(some(as<Triangle>(_))) = [] { return 3; });
+  match(a)(
+      pattern(as<int>(arg)) = [](const auto &) { EXPECT_FALSE(true); },
+      pattern(as<str>(arg)) = [](const auto &s) { EXPECT_EQ("hello", s); });
 }
