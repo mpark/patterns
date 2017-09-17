@@ -553,37 +553,21 @@ namespace mpark::patterns {
     template <typename GroupedIndices>
     using indices_t = decltype(indices(GroupedIndices{}));
 
-    template <typename Patterns, typename F>
-    struct Case { Patterns patterns; F f; };
+    template <typename Pattern, typename Rhs>
+    struct Case {
+      Rhs &&rhs() && noexcept { return std::forward<Rhs>(rhs_); }
+
+      Pattern pattern;
+      Rhs &&rhs_;
+    };
 
     template <typename... Patterns>
     struct Pattern {
-      template <typename F>
-      auto operator=(F &&f) && noexcept {
-        // The intermediate function that performs the adjustments for
-        // placeholder-related functionality and ultimately calls `f` with
-        // the final arguments.
-        auto f_ = [&](auto &&... args) {
-          using GroupedIndices =
-              group_indices_t<std::decay_t<decltype(args)>...>;
-          auto args_ = std::forward_as_tuple([](auto &&arg) -> auto && {
-            if constexpr (is_indexed_forwarder_v<std::decay_t<decltype(arg)>>) {
-              static_assert(std::is_rvalue_reference_v<decltype(arg)>);
-              static_assert(
-                  std::is_reference_v<decltype(std::move(arg).forward())>);
-              return std::move(arg).forward();
-            } else {
-              return std::forward<decltype(arg)>(arg);
-            }
-          }(std::forward<decltype(args)>(args))...);
-          return equals(args_, GroupedIndices{})
-                     ? match_apply(std::forward<F>(f),
-                                   std::move(args_),
-                                   indices_t<GroupedIndices>{})
-                     : no_match;
-        };
-        return Case<Ds<Patterns...>, decltype(f_)>{std::move(patterns),
-                                                   std::move(f_)};
+      static constexpr std::size_t size = sizeof...(Patterns);
+
+      template <typename Rhs>
+      auto operator=(Rhs &&rhs) && noexcept {
+        return Case<Pattern, Rhs>{std::move(*this), std::forward<Rhs>(rhs)};
       }
 
       Ds<Patterns...> patterns;
@@ -592,12 +576,36 @@ namespace mpark::patterns {
     template <typename R, typename... Values>
     struct Match {
       public:
-      template <typename Patterns, typename F, typename... Cases>
-      decltype(auto) operator()(Case<Patterns, F> &&case_,
+      template <typename Pattern, typename F, typename... Cases>
+      decltype(auto) operator()(Case<Pattern, F> &&case_,
                                 Cases &&... cases) && {
         auto result = [&] {
           auto result = try_match(
-              std::move(case_).patterns, std::move(values), std::move(case_).f);
+              std::move(case_).pattern.patterns,
+              std::move(values),
+              [&](auto &&... args) {
+                // The intermediate function that performs the adjustments for
+                // placeholder-related functionality and ultimately calls `f`
+                // with the final arguments.
+                using GroupedIndices =
+                    group_indices_t<std::decay_t<decltype(args)>...>;
+                auto args_ = std::forward_as_tuple([](auto &&arg) -> auto && {
+                  if constexpr (is_indexed_forwarder_v<
+                                    std::decay_t<decltype(arg)>>) {
+                    static_assert(std::is_rvalue_reference_v<decltype(arg)>);
+                    static_assert(std::is_reference_v<decltype(
+                                      std::move(arg).forward())>);
+                    return std::move(arg).forward();
+                  } else {
+                    return std::forward<decltype(arg)>(arg);
+                  }
+                }(std::forward<decltype(args)>(args))...);
+                return equals(args_, GroupedIndices{})
+                           ? match_apply(std::move(case_).rhs(),
+                                         std::move(args_),
+                                         indices_t<GroupedIndices>{})
+                           : no_match;
+              });
 
           using Result = decltype(result);
           static_assert(is_match_result_v<Result>,

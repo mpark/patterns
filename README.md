@@ -58,9 +58,9 @@ int main() {
 using namespace mpark::patterns;
 IDENTIFIERS(<identifier>...);  // optional
 match(<expr>...)(
-  pattern(<pattern>...) = [](<binding>...) { /* ... */ },
-  pattern(<pattern>...) = [](<binding>...) { /* ... */ },
-  // ...
+    pattern(<pattern>...) = [](<binding>...) { /* ... */ },
+    pattern(<pattern>...) = [](<binding>...) { /* ... */ },
+    // ...
 );
 ```
 
@@ -500,6 +500,99 @@ match(101, 202)(
       WHEN(lhs == rhs) { std::cout << "EQ\n"; };
     });
 // prints: "LT"
+```
+
+## `let` Statements
+
+### `if_let`
+
+This construct is simply syntactic sugar for the following situation:
+
+```cpp
+std::optional<int> o = 42;
+
+using namespace mpark::patterns;
+match(o)(
+    pattern(some(arg)) = [](auto x) { ... },
+    pattern(_) = [] {});
+```
+
+For this situation, `if_let` provides a cleaner interface:
+
+```cpp
+std::optional<int> o = 42;
+
+using namespace mpark::patterns;
+if_let (pattern(some(arg)) = o) = [](auto x) {
+  // ...
+};
+```
+
+### `for_let`
+
+Suppose we want to match each element in a range-based `for` loop with pattern.
+We could imagine being able to write something like:
+
+```cpp
+std::vector<std::pair<int, int>> pairs = {{0, 1}, {1, 1}, {0, 0}, {0, 2}};
+
+for ((0, x) : pairs) {
+  std::cout << x << ' ';
+}
+// prints: "1 0 2 "
+```
+
+With `if_let` we can say something close-ish:
+
+```cpp
+std::vector<std::pair<int, int>> pairs = {{0, 1}, {1, 1}, {0, 0}, {0, 2}};
+
+for (const auto &p : pairs) {
+  using namespace mpark::patterns;
+  if_let (pattern(ds(0, arg)) = p) = [](auto x) {
+    std::cout << x << ' ';
+  };
+}
+// prints: "1 0 2 "
+```
+
+`for_let` allows the above example to be written more concisely:
+
+```cpp
+std::vector<std::pair<int, int>> pairs = {{0, 1}, {1, 1}, {0, 0}, {0, 2}};
+
+using namespace mpark::patterns;
+for_let (pattern(ds(0, arg)) = pairs) = [](auto x) {
+  std::cout << x << ' ';
+};
+// prints: "1 0 2 "
+```
+
+`for_let` also provides the `break` and `continue` statements with
+`return Break;` and `return Continue;` respectively.
+
+```cpp
+std::vector<std::pair<int, int>> pairs = {{0, 1}, {1, 1}, {0, 0}, {0, 2}};
+
+using namespace mpark::patterns;
+for_let (pattern(ds(0, arg)) = pairs) = [](auto x) {
+  if (x == 1) return Break;
+  std::cout << x << ' ';
+  return Continue;
+};
+// prints: "0 "
+```
+
+```cpp
+std::vector<std::pair<int, int>> pairs = {{0, 1}, {1, 1}, {0, 0}, {0, 2}};
+
+using namespace mpark::patterns;
+for_let (pattern(ds(0, arg)) = pairs) = [](auto x) {
+  if (x == 0) return Continue;
+  std::cout << x << ' ';
+  return Continue;
+};
+// prints: "1 2 "
 ```
 
 ## Requirements

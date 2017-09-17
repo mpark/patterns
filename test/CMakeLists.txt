@@ -52,6 +52,7 @@ set(MPARK_TESTS
   ds
   identifier
   intro
+  let
   optional
   regex
   variadic)
