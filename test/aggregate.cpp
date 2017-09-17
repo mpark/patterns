@@ -24,8 +24,8 @@ TEST(Aggregate, LRef) {
 
   using namespace mpark::patterns;
   double &result = match(aggregate)(
-      pattern(prod(arg, "world", _)) = [](double &d) -> double & { return d; },
-      pattern(prod(arg, "hello", _)) = [](double &d) -> double & { return d; });
+      pattern(ds(arg, "world", _)) = [](double &d) -> double & { return d; },
+      pattern(ds(arg, "hello", _)) = [](double &d) -> double & { return d; });
 
   EXPECT_EQ(aggregate.d, result);
   EXPECT_EQ(&aggregate.d, &result);
@@ -36,10 +36,10 @@ TEST(Aggregate, ConstLRef) {
 
   using namespace mpark::patterns;
   const double &result = match(aggregate)(
-      pattern(prod(arg, "world", _)) = [](const double &d) -> const double & {
+      pattern(ds(arg, "world", _)) = [](const double &d) -> const double & {
         return d;
       },
-      pattern(prod(arg, "hello", _)) = [](const double &d) -> const double & {
+      pattern(ds(arg, "hello", _)) = [](const double &d) -> const double & {
         return d;
       });
 
@@ -52,10 +52,10 @@ TEST(Aggregate, RRef) {
 
   using namespace mpark::patterns;
   double result = match(aggregate())(
-      pattern(prod(arg, "world", _)) = [](double &&d) -> double {
+      pattern(ds(arg, "world", _)) = [](double &&d) -> double {
         return std::move(d);
       },
-      pattern(prod(arg, "hello", _)) = [](double &&d) -> double {
+      pattern(ds(arg, "hello", _)) = [](double &&d) -> double {
         return std::move(d);
       });
 
@@ -66,15 +66,15 @@ TEST(Aggregate, Empty) {
   struct {} empty;
 
   using namespace mpark::patterns;
-  match(empty)(pattern(prod()) = [] {});
+  match(empty)(pattern(ds()) = [] {});
 }
 
 TEST(Aggregate, OneChar) {
   struct { char x; } one{'x'};
 
   using namespace mpark::patterns;
-  int result = match(one)(pattern(prod('a')) = [] { return false; },
-                          pattern(prod('x')) = [] { return true; });
+  int result = match(one)(pattern(ds('a')) = [] { return false; },
+                          pattern(ds('x')) = [] { return true; });
 
   EXPECT_TRUE(result);
 }
@@ -83,8 +83,8 @@ TEST(Aggregate, OneInt) {
   struct { int x; } one{101};
 
   using namespace mpark::patterns;
-  int result = match(one)(pattern(prod(101)) = [] { return true; },
-                          pattern(prod(1)) = [] { return false; });
+  int result = match(one)(pattern(ds(101)) = [] { return true; },
+                          pattern(ds(1)) = [] { return false; });
 
   EXPECT_TRUE(result);
 }
@@ -93,8 +93,8 @@ TEST(Aggregate, TwoChars) {
   struct { char x; char y; } two{'x', 'y'};
 
   using namespace mpark::patterns;
-  bool result = match(two)(pattern(prod('a', 'b')) = [] { return false; },
-                           pattern(prod('x', 'y')) = [] { return true; });
+  bool result = match(two)(pattern(ds('a', 'b')) = [] { return false; },
+                           pattern(ds('x', 'y')) = [] { return true; });
 
   EXPECT_TRUE(result);
 }
@@ -103,8 +103,8 @@ TEST(Aggregate, TwoInts) {
   struct { int x; int y; } two{101, 202};
 
   using namespace mpark::patterns;
-  bool result = match(two)(pattern(prod(1, 2)) = [] { return false; },
-                           pattern(prod(101, 202)) = [] { return true; });
+  bool result = match(two)(pattern(ds(1, 2)) = [] { return false; },
+                           pattern(ds(101, 202)) = [] { return true; });
 
   EXPECT_TRUE(result);
 }
@@ -114,8 +114,8 @@ TEST(Aggregate, ThreeChars) {
 
   using namespace mpark::patterns;
   bool result =
-      match(three)(pattern(prod('x', 'y', 'z')) = [] { return true; },
-                   pattern(prod('a', 'b', 'c')) = [] { return false; });
+      match(three)(pattern(ds('x', 'y', 'z')) = [] { return true; },
+                   pattern(ds('a', 'b', 'c')) = [] { return false; });
 
   EXPECT_TRUE(result);
 }
@@ -125,8 +125,8 @@ TEST(Aggregate, FourChars) {
 
   using namespace mpark::patterns;
   bool result =
-      match(four)(pattern(prod('p', 'q', 'r', 's')) = [] { return false; },
-                  pattern(prod('a', 'b', 'c', 'd')) = [] { return true; });
+      match(four)(pattern(ds('p', 'q', 'r', 's')) = [] { return false; },
+                  pattern(ds('a', 'b', 'c', 'd')) = [] { return true; });
 
   EXPECT_TRUE(result);
 }

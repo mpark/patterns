@@ -20,7 +20,7 @@ namespace utility {
   decltype(auto) apply(F &&f, Tuple &&t) {
     using namespace mpark::patterns;
     return match(std::forward<Tuple>(t))(
-        pattern(prod(variadic(arg))) = std::forward<F>(f));
+        pattern(ds(variadic(arg))) = std::forward<F>(f));
   }
 
 }  // namespace utility
@@ -41,7 +41,7 @@ namespace utility {
   decltype(auto) visit(F &&f, Vs &&... vs) {
     using namespace mpark::patterns;
     return match(std::forward<Vs>(vs)...)(
-        pattern(variadic(sum(arg))) = std::forward<F>(f));
+        pattern(variadic(vis(arg))) = std::forward<F>(f));
   }
 
 }  // namespace utility
@@ -68,12 +68,12 @@ TEST(Variadic, Middle) {
   using namespace mpark::patterns;
   IDENTIFIERS(x, y, z);
   int result = match(tuple)(
-      pattern(prod(variadic(x))) = [](auto) { return 1; },
-      pattern(prod(x, variadic(arg), x)) = [](auto, auto... args) {
+      pattern(ds(variadic(x))) = [](auto) { return 1; },
+      pattern(ds(x, variadic(arg), x)) = [](auto, auto... args) {
         static_assert(sizeof...(args) == 2);
         return 2;
       },
-      pattern(prod(x, y, y, variadic(arg), x)) = [](auto, auto, auto... args) {
+      pattern(ds(x, y, y, variadic(arg), x)) = [](auto, auto, auto... args) {
         static_assert(sizeof...(args) == 0);
         return 3;
       });

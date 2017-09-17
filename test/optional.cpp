@@ -23,7 +23,7 @@ TEST(Optional, Pointer) {
   EXPECT_FALSE(holds(nullptr));
 }
 
-TEST(Optional, StdOptional) {
+TEST(Optional, Std) {
   auto test_optional = [](const std::optional<std::optional<int>> &oo) {
     using namespace mpark::patterns;
     return match(oo)(pattern(some(some(_))) = [] { return 0; },

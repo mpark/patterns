@@ -56,6 +56,7 @@ int main() {
 
 ```cpp
 using namespace mpark::patterns;
+IDENTIFIERS(<identifier>...);  // optional
 match(<expr>...)(
   pattern(<pattern>...) = [](<binding>...) { /* ... */ },
   pattern(<pattern>...) = [](<binding>...) { /* ... */ },
@@ -64,6 +65,30 @@ match(<expr>...)(
 ```
 
 ## Types of Patterns
+
+### Expression Pattern
+
+An _expression pattern_ matches if the value compares equal to
+the given expression.
+
+#### Requirements
+
+Given an expression `e` and a value `x`, `e == x` must be a valid expression.
+
+#### Syntax
+
+  - `<expr>`
+
+#### Examples
+
+```cpp
+int factorial(int n) {
+  using namespace mpark::patterns;
+  return match(n)(pattern(0) = [] { return 1; },
+                  //      ^ expression
+                  pattern(_) = [n] { return n * factorial(n - 1); });
+}
+```
 
 ### Wildcard Pattern
 
@@ -84,12 +109,22 @@ int factorial(int n) {
   using namespace mpark::patterns;
   return match(n)(pattern(0) = [] { return 1; },
                   pattern(_) = [n] { return n * factorial(n - 1); });
+                  //      ^ wildcard
 }
 ```
 
-### Bind Pattern
+### Binding Patterns
 
-A _bind pattern_ passes any value matched by `<pattern>` to the handler.
+A _binding pattern_ passes matching values to corresponding handler.
+
+There are two types of binding patterns:
+  * Arg Pattern
+  * Identifier Pattern
+
+### Arg Pattern
+
+A _arg pattern_ passes any matching values to the corresponding handler.
+It can be used multiple times, and they match independent of each other.
 
 #### Requirements
 
@@ -107,20 +142,83 @@ int factorial(int n) {
   using namespace mpark::patterns;
   return match(n)(pattern(0) = [] { return 1; },
                   pattern(arg) = [](auto n) { return n * factorial(n - 1); });
+                  //      ^^^ arg
 }
 ```
 
-### Product Pattern
+```cpp
+using namespace mpark::patterns;
+match(202, 101)(pattern(101, arg) = [](auto) { /* ... */ },
+                //           ^^^ arg
+                pattern(arg, arg) = [](auto, auto) { /* OK. */ });
+                //      ^^^  ^^^ arg
+```
 
-A _product pattern_ matches values that holds multiple values.
+### Identifier Pattern
+
+An _identifier pattern_ is similar to the _arg pattern_ in that it is a binding
+pattern. It matches any values and passes them to the corresponding handler.
+
+It can be also be used multiple times, with an additional constraint that
+the values bound to the repeated identifiers must compare equal in order
+for the enclosing pattern to match.
 
 #### Requirements
 
-The type `T` satisfies `Product` if given a variable `x` of type `T`,
-  - If `std::tuple_size<T>` is a complete type, `x.get<I>()` is valid for all
-    `I` in `[0, std::tuple_size<T>::value)`. Otherwise, `get<I>(x)` is valid
-    for all `I` in `[0, std::tuple_size<T>::value)`.
-  - `std::tuple_size<T>::value` is a well-formed integer constant expression.
+If no identifiers are repeated, none.
+
+Otherwise, let `x, xs...` be the values matched by a repeated identifier.
+Then `(... && (x == xs))` must be a valid expression for each repeated identifier.
+
+#### Syntax
+
+  - IDENTIFIERS(<identifier>...);
+  - `<identifier>(<pattern>)`
+  - `<identifier>` -- alias for `<identifier>(_)`
+
+#### Examples
+
+```cpp
+using namespace mpark::patterns;
+IDENTIFIERS(x, y);
+match(101, 202)(
+    pattern(x, x) = [](auto x) { std::cout << "same\n"; },
+    //      ^  ^ identifier
+    pattern(x, y) = [](auto x, auto y) { std::cout << "diff\n"; });
+    //      ^  ^ identifier
+// prints: "diff"
+```
+
+```cpp
+using namespace mpark::patterns;
+IDENTIFIERS(x, y);
+match(42, 42)(
+    pattern(x, x) = [](auto x) { std::cout << "same\n"; },
+    //      ^  ^ identifier
+    pattern(x, y) = [](auto x, auto y) { std::cout << "diff\n"; });
+    //      ^  ^ identifier
+// prints: "same"
+```
+
+### Destructure Pattern
+
+A _destructure pattern_ matches values that holds multiple values.
+
+#### Requirements
+
+Given a value `x` of type `T`, `T` must satisfy one of the following conditions:
+  1. `std::is_array_v<T> == true`, or
+  2. `std::is_class_v<T> == true` and `std::tuple_size<T>` is a complete type, or
+  3. `std::is_aggregate_v<T> == true`
+
+If (2), the following conditions must also be satisfied.
+  - `std::tuple_size<T>::value` must be a well-formed
+    integer constant expression, and
+  - `x.get<I>()` or `get<I>(x)` must be a valid expression for all `I` in
+    `[0, std::tuple_size<T>::value)`
+
+For aggregate types (3), the current implementation only supports types that
+contain upto 16 non-static data members.
 
 __NOTE__: These requirements are very similar to the requirements for
           [C++17 Structured Bindings][structured-bindings].
@@ -129,7 +227,7 @@ __NOTE__: These requirements are very similar to the requirements for
 
 #### Syntax
 
-  - `prod(<pattern>...)`
+  - `ds(<pattern>...)`
 
 #### Examples
 
@@ -140,11 +238,12 @@ auto t = std::make_tuple(101, "hello", 1.1);
 const auto& [x, y, z] = t;
 // ...
 
-// C++14 MPark.Patterns:
+// MPark.Patterns:
 using namespace mpark::patterns;
 placeholder x, y, z;
 match(t)(
-    pattern(prod(x, y, z)) = [](const auto& x, const auto& y, const auto& z) {
+    pattern(ds(x, y, z)) = [](const auto& x, const auto& y, const auto& z) {
+    //      ^^^^^^^^^^^ destructure
       // ...
     });
 ```
@@ -159,69 +258,21 @@ void fizzbuzz() {
         pattern(0, 0) = [] { std::cout << "fizzbuzz\n"; },
         pattern(0, _) = [] { std::cout << "fizz\n"; },
         pattern(_, 0) = [] { std::cout << "buzz\n"; },
-        pattern(_, _) = [i] { std::cout << i << std::endl; });
+        pattern(_, _) = [i] { std::cout << i << '\n'; });
   }
 }
 ```
 
-### Sum Pattern
-
-A _sum pattern_ matches values that holds one of a set of alternatives.
-
-The `sum<T>` pattern matches if the given value holds an instance of `T`.
-The `sum` pattern matches values of a sum type,
-
-#### Requirements
-
-The type `T` satisfies `Sum<U>` if given a variable `x` of type `T`,
-  - If `std::variant_size<T>` is a complete type, `x.get_if<U>()` and `x.get<U>()`
-    are valid. Otherwise, `get_if<U>(&x)` and `get<U>(x)` are valid.
-  - `std::variant_size<T>::value` is a well-formed integer constant expression.
-
-The type `T` satisfies `Sum` if given a variable `x` of type `T`,
-  - If `std::variant_size<T>` is a complete type, `visit([](auto&&) {}, x)` is valid.
-  - `std::variant_size<T>::value` is a well-formed integer constant expression.
-
-#### Syntax
-
-  - `sum<U>(<pattern>)`
-  - `sum(<pattern>)`
-
-#### Examples
-
-```cpp
-using str = std::string;
-std::variant<int, str> v = 42;
-
-using namespace mpark::patterns;
-match(v)(pattern(sum<int>(_)) = [] { std::cout << "int\n"; },
-         pattern(sum<str>(_)) = [] { std::cout << "str\n"; });
-// prints: "int".
-```
-
-```cpp
-using str = std::string;
-std::variant<int, str> v = "hello world!";
-
-struct {
-  void operator()(int n) const { std::cout << "int: " << n << '\n'; }
-  void operator()(const str& s) const { std::cout << "str: " << s << '\n'; }
-} handler;
-
-using namespace mpark::patterns;
-match(v)(pattern(sum(arg)) = handler);
-// prints: "str: hello world!".
-```
-
 ### Optional Pattern
 
-An _optional pattern_ matches values that can be dereferenced, and tested as a `bool`.
+An _optional pattern_ matches values that can be dereferenced,
+and tested as a `bool`.
 
 #### Requirements
 
-The type `T` satisfies `Optional` if given a variable `x` of type `T`,
-  - `*x` is a valid expression.
-  - `x` is contextually convertible to `bool`.
+Given a value `x` of type `T`, `T` must satisfy all of the following conditions:
+  - `*x` is a valid expression, and
+  - `x` is contextually convertible to `bool`
 
 #### Syntax
 
@@ -236,7 +287,7 @@ int *p = nullptr;
 using namespace mpark::patterns;
 match(p)(pattern(some(_)) = [] { std::cout << "some\n"; },
          pattern(none) = [] { std::cout << "none\n"; });
-// prints: "none".
+// prints: "none"
 ```
 
 ```cpp
@@ -246,74 +297,85 @@ using namespace mpark::patterns;
 match(o)(
     pattern(some(arg)) = [](auto x) { std::cout << "some(" << x << ")\n"; },
     pattern(none) = [] { std::cout << "none\n"; });
-// prints: "some(42)".
+// prints: "some(42)"
 ```
 
-### Variadic Pattern
+### As Pattern
 
-A _variadic pattern_ matches 0 or more values that match a given pattern.
+An _as pattern_ matches values that is capable of holding a value of multiple types.
 
 #### Requirements
 
-None.
+Given a value `x` of type `T`, `T` must satisfy one of the following conditions:
+  1. `std::is_polymorphic_v<T> == true`, or
+  2. `std::is_class_v<T> == true` and `std::variant_size<T>` is a complete type
+
+Given `as<U>(<pattern>)`,
+  - If (1), `dynamic_cast<U'>(&x)` must be a valid expression,
+    where `U'` is pointer to `U` with the same cv-qualifiers as `decltype(x)`
+  - If (2), `x.get_if<U>()` or `get_if<U>(&x)` must be a valid expression
 
 #### Syntax
 
-  - `variadic(<pattern>)`
+  - `as<U>(<pattern>)`
 
 #### Examples
 
 ```cpp
-auto x = std::make_tuple(101, "hello", 1.1);
+using str = std::string;
+std::variant<int, str> v = 42;
 
 using namespace mpark::patterns;
-match(x)(
-    pattern(prod(variadic(arg))) = [](const auto&... xs) {
-      int dummy[] = { (std::cout << xs << ' ', 0)... };
-      (void)dummy;
-    });
-// prints: "101 hello 1.1 "
+match(v)(pattern(as<int>(_)) = [] { std::cout << "int\n"; },
+         pattern(as<str>(_)) = [] { std::cout << "str\n"; });
+// prints: "int"
 ```
 
-This could also be used to implement [C++17 `std::apply`][apply]:
-
-[apply]: http://en.cppreference.com/w/cpp/utility/apply
-
 ```cpp
-template <typename F, typename Tuple>
-decltype(auto) apply(F &&f, Tuple &&t) {
-  using namespace mpark::patterns;
-  return match(std::forward<T>(t))(
-      pattern(prod(variadic(arg))) = std::forward<F>(f));
-}
-```
+struct Shape { virtual ~Shape() = default; };
+struct Circle : Shape {};
+struct Square : Shape {};
 
-and even [C++17 `std::visit`][visit]:
-
-[visit]: http://en.cppreference.com/w/cpp/utility/variant/visit
-
-```cpp
-template <typename F, typename... Vs>
-decltype(auto) visit(F &&f, Vs &&... vs) {
-  using namespace mpark::patterns;
-  return match(std::forward<Vs>(vs)...)(
-      pattern(variadic(sum(arg))) = std::forward<F>(f));
-}
-```
-
-We can even get a little fancier:
-
-```cpp
-int x = 42;
-auto y = std::make_tuple(101, "hello", 1.1);
+std::unique_ptr<Shape> shape = std::make_unique<Square>();
 
 using namespace mpark::patterns;
-match(x, y)(
-    pattern(arg, prod(variadic(arg))) = [](const auto&... xs) {
-      int dummy[] = { (std::cout << xs << ' ', 0)... };
-      (void)dummy;
-    });
-// prints: "42 101 hello 1.1 "
+match(shape)(pattern(some(as<Circle>(_))) = [] { std::cout << "Circle\n"; },
+             pattern(some(as<Square>(_))) = [] { std::cout << "Square\n"; });
+// prints: "Square"
+```
+
+### Visit Pattern
+
+A _visit pattern_ matches values that is capable of holding a value of
+closed set of types, and can be visited.
+
+#### Requirements
+
+Given a value `x`, The following code must be valid.
+
+```
+using std::visit;
+visit([](auto&&) {}, x);`
+```
+
+#### Syntax
+
+  - `vis(<pattern>)`
+
+#### Examples
+
+```cpp
+using str = std::string;
+std::variant<int, str> v = "hello world!";
+
+struct Visitor {
+  void operator()(int n) const { std::cout << "int: " << n << '\n'; }
+  void operator()(const str& s) const { std::cout << "str: " << s << '\n'; }
+};
+
+using namespace mpark::patterns;
+match(v)(pattern(vis(arg)) = Visitor{});
+// prints: "str: hello world!".
 ```
 
 ### Alternation Pattern
@@ -340,11 +402,83 @@ match(s)(
     pattern(_) = [] { std::cout << "unknown size.\n"; });
 ```
 
+### Variadic Pattern
+
+A _variadic pattern_ matches 0 or more values that match a given pattern.
+
+#### Requirements
+
+  - A _variadic pattern_ can only appear within a destructure pattern.
+  - A _variadic pattern_ can only appear once.
+
+#### Syntax
+
+  - `variadic(<pattern>)`
+
+#### Examples
+
+```cpp
+auto x = std::make_tuple(101, "hello", 1.1);
+
+using namespace mpark::patterns;
+match(x)(
+    pattern(ds(variadic(arg))) = [](const auto&... xs) {
+      int dummy[] = { (std::cout << xs << ' ', 0)... };
+      (void)dummy;
+    });
+// prints: "101 hello 1.1 "
+```
+
+This could also be used to implement [C++17 `std::apply`][apply]:
+
+[apply]: http://en.cppreference.com/w/cpp/utility/apply
+
+```cpp
+template <typename F, typename Tuple>
+decltype(auto) apply(F &&f, Tuple &&t) {
+  using namespace mpark::patterns;
+  return match(std::forward<T>(t))(
+      pattern(ds(variadic(arg))) = std::forward<F>(f));
+}
+```
+
+and even [C++17 `std::visit`][visit]:
+
+[visit]: http://en.cppreference.com/w/cpp/utility/variant/visit
+
+```cpp
+template <typename F, typename... Vs>
+decltype(auto) visit(F &&f, Vs &&... vs) {
+  using namespace mpark::patterns;
+  return match(std::forward<Vs>(vs)...)(
+      pattern(variadic(vis(arg))) = std::forward<F>(f));
+}
+```
+
+We can even get a little fancier:
+
+```cpp
+int x = 42;
+auto y = std::make_tuple(101, "hello", 1.1);
+
+using namespace mpark::patterns;
+match(x, y)(
+    pattern(arg, ds(variadic(arg))) = [](const auto&... xs) {
+      int dummy[] = { (std::cout << xs << ' ', 0)... };
+      (void)dummy;
+    });
+// prints: "42 101 hello 1.1 "
+```
+
 ## Pattern Guards
 
 While pattern matching is used to match values against patterns and bind the
 desired portions, pattern guards are used to test whether the bound values
 satisfy some predicate.
+
+#### Requirements
+
+A _pattern guard_ must be the only statement in a handler.
 
 #### Syntax
 
@@ -365,7 +499,7 @@ match(101, 202)(
     pattern(lhs, rhs) = [](auto&& lhs, auto&& rhs) {
       WHEN(lhs == rhs) { std::cout << "EQ\n"; };
     });
-// prints: "LT".
+// prints: "LT"
 ```
 
 ## Requirements

@@ -113,10 +113,10 @@ namespace rb {
     IDENTIFIERS(a, b, c, d, x, y, z);
     match(std::move(*this))(
         pattern(
-            anyof(prod(Black, some(prod(Red, some(prod(Red, a, x, b)), y, c)), z, d),
-                  prod(Black, some(prod(Red, a, x, some(prod(Red, b, y, c)))), z, d),
-                  prod(Black, a, x, some(prod(Red, some(prod(Red, b, y, c)), z, d))),
-                  prod(Black, a, x, some(prod(Red, b, y, some(prod(Red, c, z, d))))))) =
+            anyof(ds(Black, some(ds(Red, some(ds(Red, a, x, b)), y, c)), z, d),
+                  ds(Black, some(ds(Red, a, x, some(ds(Red, b, y, c)))), z, d),
+                  ds(Black, a, x, some(ds(Red, some(ds(Red, b, y, c)), z, d))),
+                  ds(Black, a, x, some(ds(Red, b, y, some(ds(Red, c, z, d))))))) =
             [&](auto &&a, auto &&x, auto &&b, auto &&y, auto &&c, auto &&z, auto &&d) {
 #define FWD(x) std::forward<decltype(x)>(x)
 

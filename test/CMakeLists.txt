@@ -46,14 +46,14 @@ endif()
 set(MPARK_TESTS
   aggregate
   array
+  as
   balance
   calc
+  ds
   identifier
   intro
   optional
-  prod
   regex
-  sum
   variadic)
 
 foreach(test ${MPARK_TESTS})

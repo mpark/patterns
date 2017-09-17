@@ -115,6 +115,9 @@ namespace std {
   template <> class tuple_size<calc::Plus> : public tuple_size<calc::Binary> {};
   template <> class tuple_size<calc::Mult> : public tuple_size<calc::Binary> {};
 
+  template <>
+  struct variant_size<calc::Expr> : public integral_constant<size_t, 4> {};
+
 }  // namespace std
 
 namespace calc {
@@ -123,14 +126,14 @@ namespace calc {
     using namespace mpark::patterns;
     IDENTIFIERS(lhs, rhs);
     match(expr)(
-        pattern(sum<int>(arg)) = [&](auto x) { strm << x; },
-        pattern(sum<Plus>(prod(lhs, rhs))) = [&](auto &&lhs, auto &&rhs) {
+        pattern(as<int>(arg)) = [&](auto x) { strm << x; },
+        pattern(as<Plus>(ds(lhs, rhs))) = [&](auto &&lhs, auto &&rhs) {
           strm << "(+ " << lhs << ' ' << rhs << ')';
         },
-        pattern(sum<Mult>(prod(lhs, rhs))) = [&](auto &&lhs, auto &&rhs) {
+        pattern(as<Mult>(ds(lhs, rhs))) = [&](auto &&lhs, auto &&rhs) {
           strm << "(* " << lhs << ' ' << rhs << ')';
         },
-        pattern(sum<Func>(prod(arg))) = [&](auto &&body) {
+        pattern(as<Func>(ds(arg))) = [&](auto &&body) {
           strm << "(fn [] " << body << ')';
         });
     return strm;
@@ -140,14 +143,14 @@ namespace calc {
     using namespace mpark::patterns;
     IDENTIFIERS(lhs, rhs);
     return match(expr)(
-        pattern(sum<int>(arg)) = [](auto x) { return x; },
-        pattern(sum<Plus>(prod(lhs, rhs))) = [](auto &&lhs, auto &&rhs) {
+        pattern(as<int>(arg)) = [](auto x) { return x; },
+        pattern(as<Plus>(ds(lhs, rhs))) = [](auto &&lhs, auto &&rhs) {
           return eval(lhs) + eval(rhs);
         },
-        pattern(sum<Mult>(prod(lhs, rhs))) = [](auto &&lhs, auto &&rhs) {
+        pattern(as<Mult>(ds(lhs, rhs))) = [](auto &&lhs, auto &&rhs) {
           return eval(lhs) * eval(rhs);
         },
-        pattern(sum<Func>(prod(arg))) = [](auto &&body) { return eval(body); });
+        pattern(as<Func>(ds(arg))) = [](auto &&body) { return eval(body); });
   }
 
 }  // namespace calc

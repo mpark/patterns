@@ -19,16 +19,10 @@ TEST(Identifier, Simple) {
   using namespace mpark::patterns;
   IDENTIFIERS(x, y, z);
   int actual = match(t, o)(
-      pattern(prod(x, x, x), some(x)) = [](auto &&) {
-        return 1;
-      },
-      pattern(prod(x, y, y), some(x)) = [](auto &&, auto &&) {
-        return 2;
-      },
-      pattern(prod(x, y, x), some(y)) = [](auto &&, auto &&) {
-        return 3;
-      },
-      pattern(prod(y, y, x), some(z)) = [](auto &&, auto &&, auto&&) {
+      pattern(ds(x, x, x), some(x)) = [](auto &&) { return 1; },
+      pattern(ds(x, y, y), some(x)) = [](auto &&, auto &&) { return 2; },
+      pattern(ds(x, y, x), some(y)) = [](auto &&, auto &&) { return 3; },
+      pattern(ds(y, y, x), some(z)) = [](auto &&, auto &&, auto &&) {
         return 4;
       });
 
@@ -42,15 +36,9 @@ TEST(Identifier, Complex) {
   using namespace mpark::patterns;
   IDENTIFIERS(x, y);
   int actual = match(t, o)(
-      pattern(prod(x(some(202)), y), x) = [](auto &&, auto&&) {
-        return 1;
-      },
-      pattern(prod(x(some(101)), y), x) = [](auto &&, auto&&) {
-        return 2;
-      },
-      pattern(prod(x(some(101)), y), y) = [](auto &&, auto&&) {
-        return 3;
-      });
+      pattern(ds(x(some(202)), y), x) = [](auto &&, auto &&) { return 1; },
+      pattern(ds(x(some(101)), y), x) = [](auto &&, auto &&) { return 2; },
+      pattern(ds(x(some(101)), y), y) = [](auto &&, auto &&) { return 3; });
 
   EXPECT_EQ(2, actual);
 }

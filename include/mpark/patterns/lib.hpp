@@ -78,6 +78,9 @@ namespace mpark::patterns::lib {
   }  // namespace cpp17
 
   template <typename... Ts>
+  inline constexpr bool false_v = false;
+
+  template <typename... Ts>
   struct list {};
 
   template <std::size_t I, typename T>

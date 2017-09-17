@@ -11,9 +11,10 @@
 #include "patterns/match.hpp"
 
 #include "patterns/anyof.hpp"
+#include "patterns/as.hpp"
 #include "patterns/optional.hpp"
 #include "patterns/regex.hpp"
-#include "patterns/sum.hpp"
+#include "patterns/vis.hpp"
 #include "patterns/when.hpp"
 
 #endif  // MPARK_PATTERNS_HPP

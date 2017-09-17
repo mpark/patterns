@@ -40,7 +40,7 @@ namespace std {
 
 }  // namespace std
 
-TEST(Prod, Pair) {
+TEST(Destructure, Pair) {
   std::vector<std::pair<int, int>> points = {{0, 0}, {1, 0}, {1, 1}, {2, 0}};
 
   int origin = 0;
@@ -48,9 +48,9 @@ TEST(Prod, Pair) {
   int otherwise = 0;
   for (const auto &point : points) {
     using namespace mpark::patterns;
-    match(point)(pattern(prod(0, 0)) = [&origin] { ++origin; },
-                 pattern(prod(_, 0)) = [&y_zero] { ++y_zero; },
-                 pattern(prod(_, _)) = [&otherwise] { ++otherwise; });
+    match(point)(pattern(ds(0, 0)) = [&origin] { ++origin; },
+                 pattern(ds(_, 0)) = [&y_zero] { ++y_zero; },
+                 pattern(ds(_, _)) = [&otherwise] { ++otherwise; });
   }
 
   EXPECT_EQ(1, origin);
@@ -58,13 +58,13 @@ TEST(Prod, Pair) {
   EXPECT_EQ(1, otherwise);
 }
 
-TEST(Prod, Custom) {
+TEST(Destructure, Custom) {
   N::S s(101, "world");
 
   using namespace mpark::patterns;
   int result = match(s)(
-      pattern(prod(0, "")) = [] { return 0; },
-      pattern(arg(prod(101, arg))) = [](const auto &x, const auto &y) {
+      pattern(ds(0, "")) = [] { return 0; },
+      pattern(arg(ds(101, arg))) = [](const auto &x, const auto &y) {
         static_assert(std::is_same<N::S, std::decay_t<decltype(x)>>::value, "");
         static_assert(
             std::is_same<std::string, std::decay_t<decltype(y)>>::value, "");
