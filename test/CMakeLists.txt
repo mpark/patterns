@@ -55,7 +55,9 @@ set(MPARK_TESTS
   let
   optional
   regex
-  variadic)
+  variadic
+  when
+)
 
 foreach(test ${MPARK_TESTS})
   add_executable(${test} ${test}.cpp)

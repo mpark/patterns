@@ -77,6 +77,12 @@ namespace mpark::patterns::lib {
 
   }  // namespace cpp17
 
+  template <typename F, typename Tuple, std::size_t... Is>
+  decltype(auto) apply(F &&f, Tuple &&tuple, std::index_sequence<Is...>) {
+    return std::invoke(std::forward<F>(f),
+                       std::get<Is>(std::forward<Tuple>(tuple))...);
+  }
+
   template <typename... Ts>
   inline constexpr bool false_v = false;
 

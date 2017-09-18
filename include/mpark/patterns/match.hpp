@@ -103,50 +103,248 @@ namespace mpark::patterns {
                : no_match;
   }
 
+  namespace detail {
+
+    template <typename F>
+    struct Guard;
+
+    template <typename T>
+    inline constexpr bool is_guard_v = false;
+
+    template <typename F>
+    inline constexpr bool is_guard_v<Guard<F>> = true;
+
+  }  // namespace detail
+
+  template <std::size_t I, typename Pattern>
+  struct Identifier;
+
+  template <typename T>
+  inline constexpr bool is_identifier_v = false;
+
+  template <std::size_t I, typename Pattern>
+  inline constexpr bool is_identifier_v<Identifier<I, Pattern>> = true;
+
+  namespace detail {
+
+    template <std::size_t I, typename T>
+    struct indexed_forwarder : forwarder<T> {
+      static constexpr std::size_t index = I;
+
+      using super = forwarder<T>;
+      using super::super;
+    };
+
+    template <typename T>
+    inline constexpr bool is_indexed_forwarder_v = false;
+
+    template <std::size_t I, typename T>
+    inline constexpr bool is_indexed_forwarder_v<indexed_forwarder<I, T>> = true;
+
+    template <typename Is, typename... Ts>
+    struct set;
+
+    template <std::size_t... Is, typename... Ts>
+    struct set<std::index_sequence<Is...>, Ts...>
+        : lib::indexed_type<Is, Ts>... {};
+
+    template <std::size_t I, typename T>
+    struct find_indexed_forwarder;
+
+    template <std::size_t I, typename... Ts>
+    struct find_indexed_forwarder<I, std::tuple<Ts...>> {
+      template <std::size_t Idx, typename T>
+      static constexpr std::size_t impl(
+          lib::indexed_type<Idx, indexed_forwarder<I, T> &&>) {
+        return Idx;
+      }
+
+      static constexpr std::size_t value =
+          impl(set<std::index_sequence_for<Ts...>, Ts...>{});
+    };
+
+    template <std::size_t I, typename T>
+    inline constexpr std::size_t find_indexed_forwarder_v =
+        find_indexed_forwarder<I, T>::value;
+
+    template <typename Arg, typename... Args>
+    decltype(auto) eval(Arg &&arg, Args &&... args) {
+      auto args_tuple = std::forward_as_tuple(std::forward<Args>(args)...);
+      using Decayed = std::decay_t<Arg>;
+      if constexpr (is_identifier_v<Decayed>) {
+        if constexpr (Decayed::has_pattern) {
+          constexpr std::size_t i =
+              find_indexed_forwarder_v<Decayed::index, decltype(args_tuple)>;
+          return std::get<i>(std::move(args_tuple)).forward();
+        } else {
+          return std::invoke(std::forward<Arg>(arg).as_guard().f,
+                             std::forward<Args>(args)...);
+        }
+      } else if constexpr (is_guard_v<Decayed>) {
+        return std::invoke(std::forward<Arg>(arg).f,
+                           std::forward<Args>(args)...);
+      } else {
+        return std::forward<Arg>(arg);
+      }
+    };
+
+    template <typename F, typename... Args>
+    auto make_guard(F &&f, Args &&... args) {
+      return [&](auto &&... args_) {
+        return std::invoke(std::forward<F>(f),
+                           eval(std::forward<Args>(args),
+                                std::forward<decltype(args_)>(args_)...)...);
+      };
+    };
+
+  }  // namespace detail
+
+#define MPARK_PATTERNS_MEMBER_OPERATORS(type)                                 \
+  template <typename Arg>                                                     \
+  auto operator=(Arg &&arg) const {                                           \
+    auto guard = make_guard(                                                  \
+        [](auto &&this_, auto &&arg_) -> decltype(auto) {                     \
+          using This_ = decltype(this_);                                      \
+          using Arg_ = decltype(arg_);                                        \
+          return std::forward<This_>(this_) = std::forward<Arg_>(arg_);       \
+        },                                                                    \
+        static_cast<const type &>(*this),                                     \
+        std::forward<Arg>(arg));                                              \
+    return Guard<decltype(guard)>{std::move(guard)};                          \
+  }                                                                           \
+                                                                              \
+  template <typename... Args>                                                 \
+  auto operator()(Args &&... args) const {                                    \
+    auto guard = make_guard(                                                  \
+        [](auto &&this_, auto &&... args_) -> decltype(auto) {                \
+          using This_ = decltype(this_);                                      \
+          return std::invoke(std::forward<This_>(this_),                      \
+                             std::forward<decltype(args_)>(args_)...);        \
+        },                                                                    \
+        static_cast<const type &>(*this),                                     \
+        std::forward<Args>(args)...);                                         \
+    return Guard<decltype(guard)>{std::move(guard)};                          \
+  }                                                                           \
+                                                                              \
+  template <typename Arg>                                                     \
+  auto operator[](Arg &&arg) const {                                          \
+    auto guard = make_guard(                                                  \
+        [](auto &&this_, auto &&arg_) -> decltype(auto) {                     \
+          using This_ = decltype(this_);                                      \
+          using Arg_ = decltype(arg_);                                        \
+          if constexpr (std::is_array_v<std::remove_reference_t<This_>>) {    \
+            /* For arrays, we handle the forwarding explicitly because     */ \
+            /* `std::forward<T>(t)[I]` always yields an lvalue-ref on GCC. */ \
+            if constexpr (std::is_rvalue_reference_v<This_>) {                \
+              return std::move(this_[std::forward<Arg_>(arg_)]);              \
+            } else {                                                          \
+              return this_[std::forward<Arg_>(arg_)];                         \
+            }                                                                 \
+          } else {                                                            \
+            return std::forward<This_>(this_)[std::forward<Arg_>(arg_)];      \
+          }                                                                   \
+        },                                                                    \
+        static_cast<const type &>(*this),                                     \
+        std::forward<Arg>(arg));                                              \
+    return Guard<decltype(guard)>{std::move(guard)};                          \
+  }
+
+  namespace detail {
+
+    template <typename F>
+    struct Guard {
+      MPARK_PATTERNS_MEMBER_OPERATORS(Guard)
+
+      F f;
+    };
+
+    template <std::size_t I, typename Pattern>
+    struct IdentifierBase {
+      using type = Identifier<I, Pattern>;
+
+      MPARK_PATTERNS_MEMBER_OPERATORS(type)
+
+      static constexpr std::size_t index = I;
+      static constexpr bool has_pattern = std::is_void_v<Pattern>;
+    };
+
+  }  // namespace detail
+
   // Wildcard Pattern
 
-  inline constexpr struct Wildcard {} _{};
+  inline constexpr std::size_t wildcard_index = npos;
 
-  template <typename Value, typename F>
-  auto try_match(Wildcard, Value &&, F &&f) {
-    return match_invoke(std::forward<F>(f));
-  }
+  template <>
+  struct Identifier<wildcard_index, void>
+      : detail::IdentifierBase<wildcard_index, void> {
+    using super = detail::IdentifierBase<wildcard_index, void>;
+
+    constexpr Identifier(int) noexcept {}
+
+    Identifier(const Identifier &) = delete;
+    Identifier &operator=(const Identifier &) = delete;
+
+    using super::operator=;
+    using super::operator();
+    using super::operator[];
+  };
+
+  using Wildcard = Identifier<wildcard_index, void>;
+  inline constexpr Wildcard _{0};
 
   // Binding Patterns
 
   // Identifier Pattern
 
   template <std::size_t I, typename Pattern>
-  struct Identifier {
+  struct Identifier : detail::IdentifierBase<I, Pattern> {
+    using super = detail::IdentifierBase<I, Pattern>;
+
     Identifier(const Identifier &) = delete;
     Identifier &operator=(const Identifier &) = delete;
 
-    const Pattern &pattern;
+    using super::operator=;
+    using super::operator();
+    using super::operator[];
+
+    // When this type of identifier is found within a `when` clause, we convert
+    // it to the guard since that's what the user must have meant.
+    auto as_guard() const {
+      return Identifier<I, void>{0}.super::operator()(
+          std::forward<Pattern>(pattern));
+    }
+
+    Pattern &&pattern;
   };
 
   template <std::size_t I>
-  struct Identifier<I, Wildcard> {
+  struct Identifier<I, void> : detail::IdentifierBase<I, void> {
+    using super = detail::IdentifierBase<I, void>;
+
     constexpr Identifier(int) noexcept {}
 
     Identifier(const Identifier &) = delete;
     Identifier &operator=(const Identifier &) = delete;
 
-    template <typename Pattern>
-    auto operator()(const Pattern &pattern_) const noexcept {
-      return Identifier<I, Pattern>{pattern_};
-    }
+    using super::operator=;
+    using super::operator();
+    using super::operator[];
 
-    const Wildcard &pattern = _;
+    template <typename Pattern>
+    auto operator()(Pattern &&pattern) const noexcept {
+      return Identifier<I, Pattern>{{}, std::forward<Pattern>(pattern)};
+    }
   };
 
   // Arg Pattern
 
-  inline constexpr Identifier<npos, Wildcard> arg{0};
+  inline constexpr std::size_t arg_index = npos - 1;
+  inline constexpr Identifier<arg_index, void> arg{0};
 
   namespace detail {
 
     template <std::size_t... Is>
-    constexpr std::tuple<Identifier<Is, Wildcard>...> identifiers_impl(
+    constexpr std::tuple<Identifier<Is, void>...> identifiers_impl(
         std::index_sequence<Is...>) {
       return {Is...};
     }
@@ -172,39 +370,22 @@ namespace mpark::patterns {
   auto [__VA_ARGS__] = mpark::patterns::detail::identifiers< \
       mpark::patterns::detail::count_args(#__VA_ARGS__)>()
 
-  namespace detail {
-
-    template <std::size_t I, typename T>
-    struct indexed_forwarder : forwarder<T> {
-      using super = forwarder<T>;
-      using super::super;
-    };
-
-    template <typename T>
-    inline constexpr bool is_indexed_forwarder_v = false;
-
-    template <std::size_t I, typename T>
-    inline constexpr bool is_indexed_forwarder_v<indexed_forwarder<I, T>> = true;
-
-    template <typename T>
-    inline constexpr std::size_t index_v = npos;
-
-    template <std::size_t I, typename T>
-    inline constexpr std::size_t index_v<indexed_forwarder<I, T>> = I;
-
-  }  // namespace detail
-
   template <std::size_t I, typename Pattern, typename Value, typename F>
   auto try_match(const Identifier<I, Pattern> &identifier,
                  Value &&value,
                  F &&f) {
-    return try_match(
-        identifier.pattern, std::forward<Value>(value), [&](auto &&... args) {
-          return match_invoke(std::forward<F>(f),
-                              detail::indexed_forwarder<I, Value &&>{
-                                  std::forward<Value>(value)},
-                              std::forward<decltype(args)>(args)...);
-        });
+    auto f_ = [&](auto &&... args) {
+      return match_invoke(
+          std::forward<F>(f),
+          detail::indexed_forwarder<I, Value &&>{std::forward<Value>(value)},
+          std::forward<decltype(args)>(args)...);
+    };
+    if constexpr (Identifier<I, Pattern>::has_pattern) {
+      return f_();
+    } else {
+      return try_match(
+          identifier.pattern, std::forward<Value>(value), std::move(f_));
+    }
   }
 
   // Variadic Pattern
@@ -498,7 +679,7 @@ namespace mpark::patterns {
     auto insert(
         lib::list<lib::indexed_type<Q, std::index_sequence<Is...>>, Tail...>) {
       using Head = lib::indexed_type<Q, std::index_sequence<Is...>>;
-      if constexpr (P == npos) {
+      if constexpr (P == arg_index) {
         return lib::
             list<Head, Tail..., lib::indexed_type<P, std::index_sequence<I>>>{};
       } else if constexpr (P == Q) {
@@ -509,20 +690,31 @@ namespace mpark::patterns {
       }
     }
 
-    template <typename... Ts>
-    lib::list<typename Ts::type...> group_indices(lib::list<Ts...> result,
-                                                  std::index_sequence<>,
-                                                  std::index_sequence<>);
+    template <typename... Ts, typename Excludes>
+    lib::list<typename Ts::type...> grouped_indices(lib::list<Ts...> result,
+                                                    Excludes,
+                                                    std::index_sequence<>,
+                                                    std::index_sequence<>);
 
     template <typename... Ts,
+              std::size_t... Excludes,
               std::size_t P, std::size_t... Ps,
               std::size_t I, std::size_t... Is>
-    auto group_indices(lib::list<Ts...> result,
-                       std::index_sequence<P, Ps...>,
-                       std::index_sequence<I, Is...>) {
-      return group_indices(insert<P, I>(result),
-                           std::index_sequence<Ps...>{},
-                           std::index_sequence<Is...>{});
+    auto grouped_indices(lib::list<Ts...> result,
+                         std::index_sequence<Excludes...> excludes,
+                         std::index_sequence<P, Ps...>,
+                         std::index_sequence<I, Is...>) {
+      return grouped_indices(
+          [&] {
+            if constexpr ((... || (P == Excludes))) {
+              return result;
+            } else {
+              return insert<P, I>(result);
+            }
+          }(),
+          excludes,
+          std::index_sequence<Ps...>{},
+          std::index_sequence<Is...>{});
     }
 
     // Group the indices of the same placeholders within the arguments.
@@ -534,7 +726,7 @@ namespace mpark::patterns {
     //   The type of arguments passed to the intermediate lambda are
     //   ```
     //     indexed_forwarder<0, int&&>
-    //     indexed_forwarder<npos, int&&>
+    //     indexed_forwarder<arg_index, int&&>
     //     indexed_forwarder<0, int&&>
     //     indexed_forwarder<1, int&&>
     //   ```
@@ -544,11 +736,12 @@ namespace mpark::patterns {
     //   compare equal in order for the pattern to match. Specifically,
     //   the values that the `x` placeholder binds to, at index 0 and 2,
     //   would need to compare equal in order for this pattern to match.
-    template <typename... Ts>
-    using group_indices_t =
-        decltype(group_indices(lib::list<>{},
-                               std::index_sequence<index_v<Ts>...>{},
-                               std::index_sequence_for<Ts...>{}));
+    template <typename Excludes, typename... Ts>
+    using grouped_indices_t =
+        decltype(grouped_indices(lib::list<>{},
+                                 Excludes{},
+                                 std::index_sequence<Ts::index...>{},
+                                 std::index_sequence_for<Ts...>{}));
 
     template <typename T>
     inline constexpr std::size_t front_v = npos;
@@ -557,22 +750,32 @@ namespace mpark::patterns {
     inline constexpr std::size_t front_v<std::index_sequence<I, Is...>> = I;
 
     template <typename... GroupedIndices>
-    std::index_sequence<front_v<GroupedIndices>...> indices(
+    std::index_sequence<front_v<GroupedIndices>...> fronts(
         lib::list<GroupedIndices...>);
+
+    template <typename... Ts>
+    using guard_indices_t =
+        decltype(fronts(grouped_indices_t<std::index_sequence<>, Ts...>{}));
 
     // Get the indices of the arguments to be passed to the final lambda.
     //
     // Example:
     //   Given placeholders `x`, `y` and
     //   `match(1, 2, 1, 4)(pattern(x, arg, x, y) = f)`,
-    //   `group_indices_t` returns `[[0, 2], [1], [3]]` (see above).
+    //   `grouped_indices_t` returns `[[0, 2], [1], [3]]` (see above).
     //
     //   Given this, the indices of the arguments to be passed to the final
     //   lambda, are the first element of each of the lists. In this case,
     //   We want `[0, 1, 3]`, so that we don't pass the value matched by `x`
     //   (i.e., `1`) multiple times.
-    template <typename GroupedIndices>
-    using indices_t = decltype(indices(GroupedIndices{}));
+    template <typename... Ts>
+    using args_indices_t = decltype(fronts(
+        grouped_indices_t<std::index_sequence<wildcard_index>, Ts...>{}));
+
+    template <typename... Ts>
+    using equals_indices_t = decltype(
+        grouped_indices_t<std::index_sequence<wildcard_index, arg_index>,
+                          Ts...>{});
 
     template <typename Pattern, typename Rhs>
     struct Case {
@@ -582,13 +785,37 @@ namespace mpark::patterns {
       Rhs &&rhs_;
     };
 
-    template <typename... Patterns>
-    struct Pattern {
+    template <bool Guarded, typename...>
+    struct Pattern;
+
+    template <typename F, typename... Patterns>
+    struct Pattern<true, F, Patterns...> {
+      static constexpr bool guarded = true;
       static constexpr std::size_t size = sizeof...(Patterns);
 
       template <typename Rhs>
       auto operator=(Rhs &&rhs) && noexcept {
         return Case<Pattern, Rhs>{std::move(*this), std::forward<Rhs>(rhs)};
+      }
+
+      Guard<F> guard;
+      Ds<Patterns...> patterns;
+    };
+
+    template <typename... Patterns>
+    struct Pattern<false, Patterns...> {
+      static constexpr bool guarded = false;
+      static constexpr std::size_t size = sizeof...(Patterns);
+
+      template <typename Rhs>
+      auto operator=(Rhs &&rhs) && noexcept {
+        return Case<Pattern, Rhs>{std::move(*this), std::forward<Rhs>(rhs)};
+      }
+
+      template <typename F>
+      auto when(Guard<F> &&guard) && noexcept {
+        return Pattern<true, F, Patterns...>{std::move(guard),
+                                             std::move(patterns)};
       }
 
       Ds<Patterns...> patterns;
@@ -604,27 +831,38 @@ namespace mpark::patterns {
           auto result = try_match(
               std::move(case_).pattern.patterns,
               std::move(values),
-              [&](auto &&... args) {
+              [&](auto &&... ifs) {
                 // The intermediate function that performs the adjustments for
                 // placeholder-related functionality and ultimately calls `f`
                 // with the final arguments.
-                using GroupedIndices =
-                    group_indices_t<std::decay_t<decltype(args)>...>;
-                auto args_ = std::forward_as_tuple([](auto &&arg) -> auto && {
-                  if constexpr (is_indexed_forwarder_v<
-                                    std::decay_t<decltype(arg)>>) {
-                    static_assert(std::is_rvalue_reference_v<decltype(arg)>);
-                    static_assert(std::is_reference_v<decltype(
-                                      std::move(arg).forward())>);
-                    return std::move(arg).forward();
+                using EqualsIndices =
+                    equals_indices_t<std::decay_t<decltype(ifs)>...>;
+                using ArgsIndices =
+                    args_indices_t<std::decay_t<decltype(ifs)>...>;
+                auto args_tuple =
+                    std::forward_as_tuple([](auto &&if_) -> auto && {
+                      static_assert(
+                          is_indexed_forwarder_v<std::decay_t<decltype(if_)>>);
+                      static_assert(std::is_rvalue_reference_v<decltype(if_)>);
+                      static_assert(std::is_reference_v<decltype(
+                                        std::move(if_).forward())>);
+                      return std::move(if_).forward();
+                    }(std::forward<decltype(ifs)>(ifs))...);
+                auto guard = [&] {
+                  if constexpr (Pattern::guarded) {
+                    return lib::apply(
+                        std::move(case_).pattern.guard.f,
+                        std::forward_as_tuple(
+                            std::forward<decltype(ifs)>(ifs)...),
+                        guard_indices_t<std::decay_t<decltype(ifs)>...>{});
                   } else {
-                    return std::forward<decltype(arg)>(arg);
+                    return true;
                   }
-                }(std::forward<decltype(args)>(args))...);
-                return equals(args_, GroupedIndices{})
+                };
+                return equals(args_tuple, EqualsIndices{}) && guard()
                            ? match_apply(std::move(case_).rhs(),
-                                         std::move(args_),
-                                         indices_t<GroupedIndices>{})
+                                         std::move(args_tuple),
+                                         ArgsIndices{})
                            : no_match;
               });
 
@@ -666,7 +904,7 @@ namespace mpark::patterns {
 
   template <typename... Patterns>
   auto pattern(const Patterns &... patterns) noexcept {
-    return detail::Pattern<Patterns...>{ds(patterns...)};
+    return detail::Pattern<false, Patterns...>{ds(patterns...)};
   }
 
   template <typename R = detail::Deduce, typename... Values>
