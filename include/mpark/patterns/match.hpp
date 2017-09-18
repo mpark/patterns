@@ -125,6 +125,10 @@ namespace mpark::patterns {
   template <std::size_t I, typename Pattern>
   inline constexpr bool is_identifier_v<Identifier<I, Pattern>> = true;
 
+  // Special indices.
+  inline constexpr std::size_t wildcard_index = npos;
+  inline constexpr std::size_t arg_index = npos / 2;
+
   namespace detail {
 
     template <std::size_t I, typename T>
@@ -159,6 +163,19 @@ namespace mpark::patterns {
         return Idx;
       }
 
+      static constexpr void impl(...) {
+        static_assert(I == wildcard_index || I == arg_index);
+
+        static_assert(I != wildcard_index,
+                      "Reference to the wildcard pattern (`_`) in the `when` "
+                      "clause is ambiguous. There are multiple instances of "
+                      "them in the source pattern.");
+        static_assert(I != arg_index,
+                      "Reference to the arg pattern (`arg`) in the `when` "
+                      "clause is ambiguous. There are multiple instances of "
+                      "them in the source pattern.");
+      }
+
       static constexpr std::size_t value =
           impl(set<std::index_sequence_for<Ts...>, Ts...>{});
     };
@@ -173,12 +190,12 @@ namespace mpark::patterns {
       using Decayed = std::decay_t<Arg>;
       if constexpr (is_identifier_v<Decayed>) {
         if constexpr (Decayed::has_pattern) {
+          return std::invoke(std::forward<Arg>(arg).as_guard().f,
+                             std::forward<Args>(args)...);
+        } else {
           constexpr std::size_t i =
               find_indexed_forwarder_v<Decayed::index, decltype(args_tuple)>;
           return std::get<i>(std::move(args_tuple)).forward();
-        } else {
-          return std::invoke(std::forward<Arg>(arg).as_guard().f,
-                             std::forward<Args>(args)...);
         }
       } else if constexpr (is_guard_v<Decayed>) {
         return std::invoke(std::forward<Arg>(arg).f,
@@ -265,34 +282,10 @@ namespace mpark::patterns {
       MPARK_PATTERNS_MEMBER_OPERATORS(type)
 
       static constexpr std::size_t index = I;
-      static constexpr bool has_pattern = std::is_void_v<Pattern>;
+      static constexpr bool has_pattern = !std::is_void_v<Pattern>;
     };
 
   }  // namespace detail
-
-  // Wildcard Pattern
-
-  inline constexpr std::size_t wildcard_index = npos;
-
-  template <>
-  struct Identifier<wildcard_index, void>
-      : detail::IdentifierBase<wildcard_index, void> {
-    using super = detail::IdentifierBase<wildcard_index, void>;
-
-    constexpr Identifier(int) noexcept {}
-
-    Identifier(const Identifier &) = delete;
-    Identifier &operator=(const Identifier &) = delete;
-
-    using super::operator=;
-    using super::operator();
-    using super::operator[];
-  };
-
-  using Wildcard = Identifier<wildcard_index, void>;
-  inline constexpr Wildcard _{0};
-
-  // Binding Patterns
 
   // Identifier Pattern
 
@@ -336,9 +329,10 @@ namespace mpark::patterns {
     }
   };
 
-  // Arg Pattern
+  // Wildcard Pattern
+  inline constexpr Identifier<wildcard_index, void> _{0};
 
-  inline constexpr std::size_t arg_index = npos - 1;
+  // Arg Pattern
   inline constexpr Identifier<arg_index, void> arg{0};
 
   namespace detail {
@@ -364,11 +358,42 @@ namespace mpark::patterns {
       return result;
     }
 
+    /*
+    template <typename StrView>
+    constexpr bool t_identifier(StrView str_view) {
+
+    }
+    */
+
+    /*
+    template <typename Head, typename... Tail>
+    lib::list<Head, Tail...> prepend(Head, lib::list<Tail...>);
+    */
+
+    template <std::size_t I, typename StrView>
+    constexpr auto parse(StrView str_view) {
+      constexpr std::string_view sv = str_view();
+      if constexpr (I == sv.size()) {
+        return std::index_sequence<>{};
+      }
+      /*
+      if constexpr (I == str_
+      identifier([] { return sv.substr(I, sv.find(',', I) - I); })
+      */
+      return std::index_sequence<0, arg_index + 1, 1>{};
+    }
+
   }  // namespace detail
 
 #define IDENTIFIERS(...)                                     \
   auto [__VA_ARGS__] = mpark::patterns::detail::identifiers< \
       mpark::patterns::detail::count_args(#__VA_ARGS__)>()
+
+#define MAGIC_IDENTIFIERS(...)                                       \
+  auto [__VA_ARGS__] = mpark::patterns::detail::identifiers_impl(    \
+      mpark::patterns::detail::parse<0>([] {                         \
+        return std::string_view(#__VA_ARGS__, sizeof(#__VA_ARGS__)); \
+      }))
 
   template <std::size_t I, typename Pattern, typename Value, typename F>
   auto try_match(const Identifier<I, Pattern> &identifier,
@@ -381,10 +406,10 @@ namespace mpark::patterns {
           std::forward<decltype(args)>(args)...);
     };
     if constexpr (Identifier<I, Pattern>::has_pattern) {
-      return f_();
-    } else {
       return try_match(
           identifier.pattern, std::forward<Value>(value), std::move(f_));
+    } else {
+      return f_();
     }
   }
 
@@ -679,7 +704,7 @@ namespace mpark::patterns {
     auto insert(
         lib::list<lib::indexed_type<Q, std::index_sequence<Is...>>, Tail...>) {
       using Head = lib::indexed_type<Q, std::index_sequence<Is...>>;
-      if constexpr (P == arg_index) {
+      if constexpr (P == wildcard_index || P == arg_index) {
         return lib::
             list<Head, Tail..., lib::indexed_type<P, std::index_sequence<I>>>{};
       } else if constexpr (P == Q) {
@@ -690,29 +715,28 @@ namespace mpark::patterns {
       }
     }
 
-    template <typename... Ts, typename Excludes>
-    lib::list<typename Ts::type...> grouped_indices(lib::list<Ts...> result,
-                                                    Excludes,
+    template <bool (*)(std::size_t), typename... Ts>
+    lib::list<typename Ts::type...> grouped_indices(lib::list<Ts...>,
                                                     std::index_sequence<>,
-                                                    std::index_sequence<>);
+                                                    std::index_sequence<>) {
+      return {};
+    }
 
-    template <typename... Ts,
-              std::size_t... Excludes,
+    template <bool (*pred)(std::size_t),
+              typename... Ts,
               std::size_t P, std::size_t... Ps,
               std::size_t I, std::size_t... Is>
     auto grouped_indices(lib::list<Ts...> result,
-                         std::index_sequence<Excludes...> excludes,
                          std::index_sequence<P, Ps...>,
                          std::index_sequence<I, Is...>) {
-      return grouped_indices(
+      return grouped_indices<pred>(
           [&] {
-            if constexpr ((... || (P == Excludes))) {
-              return result;
-            } else {
+            if constexpr (pred(P)) {
               return insert<P, I>(result);
+            } else {
+              return result;
             }
           }(),
-          excludes,
           std::index_sequence<Ps...>{},
           std::index_sequence<Is...>{});
     }
@@ -736,12 +760,11 @@ namespace mpark::patterns {
     //   compare equal in order for the pattern to match. Specifically,
     //   the values that the `x` placeholder binds to, at index 0 and 2,
     //   would need to compare equal in order for this pattern to match.
-    template <typename Excludes, typename... Ts>
+    template <bool (*pred)(std::size_t), typename... Ts>
     using grouped_indices_t =
-        decltype(grouped_indices(lib::list<>{},
-                                 Excludes{},
-                                 std::index_sequence<Ts::index...>{},
-                                 std::index_sequence_for<Ts...>{}));
+        decltype(grouped_indices<pred>(lib::list<>{},
+                                       std::index_sequence<Ts::index...>{},
+                                       std::index_sequence_for<Ts...>{}));
 
     template <typename T>
     inline constexpr std::size_t front_v = npos;
@@ -754,8 +777,8 @@ namespace mpark::patterns {
         lib::list<GroupedIndices...>);
 
     template <typename... Ts>
-    using guard_indices_t =
-        decltype(fronts(grouped_indices_t<std::index_sequence<>, Ts...>{}));
+    using guard_indices_t = decltype(
+        fronts(grouped_indices_t<[](std::size_t) { return true; }, Ts...>{}));
 
     // Get the indices of the arguments to be passed to the final lambda.
     //
@@ -769,13 +792,14 @@ namespace mpark::patterns {
     //   We want `[0, 1, 3]`, so that we don't pass the value matched by `x`
     //   (i.e., `1`) multiple times.
     template <typename... Ts>
-    using args_indices_t = decltype(fronts(
-        grouped_indices_t<std::index_sequence<wildcard_index>, Ts...>{}));
+    using args_indices_t = decltype(
+        fronts(grouped_indices_t<[](std::size_t i) { return i <= arg_index; },
+                                 Ts...>{}));
 
     template <typename... Ts>
-    using equals_indices_t = decltype(
-        grouped_indices_t<std::index_sequence<wildcard_index, arg_index>,
-                          Ts...>{});
+    using equals_indices_t = grouped_indices_t<
+        [](std::size_t i) { return i != wildcard_index && i != arg_index; },
+        Ts...>;
 
     template <typename Pattern, typename Rhs>
     struct Case {

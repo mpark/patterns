@@ -42,3 +42,18 @@ TEST(Identifier, Complex) {
 
   EXPECT_EQ(2, actual);
 }
+
+TEST(Identifier, Discards) {
+  std::tuple<int, int, int> t = {101, 202, 101};
+  std::optional<int> o = 202;
+
+  using namespace mpark::patterns;
+  MAGIC_IDENTIFIERS(x, y_, z);
+  int actual = match(t, o)(
+      pattern(ds(x , x , x ), some(x )) = [](auto &&) { return 1; },
+      pattern(ds(x , y_, y_), some(x )) = [](auto &&) { return 2; },
+      pattern(ds(x , y_, x ), some(y_)) = [](auto &&) { return 3; },
+      pattern(ds(y_, y_, x ), some(z )) = [](auto &&, auto &&) { return 4; });
+
+  EXPECT_EQ(3, actual);
+}
