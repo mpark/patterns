@@ -83,6 +83,30 @@ namespace mpark::patterns::lib {
                        std::get<Is>(std::forward<Tuple>(tuple))...);
   }
 
+  // `string_view::find` is not `constexpr` on GCC 7.
+  inline constexpr std::size_t find(std::string_view this_,
+                                    char ch,
+                                    std::size_t begin = 0) {
+    for (std::size_t i = begin; i < this_.size(); ++i) {
+      if (this_[i] == ch) {
+        return i;
+      }
+    }
+    return std::string_view::npos;
+  }
+
+  // `string_view::find_first_not_of` is not `constexpr` on GCC 7.
+  inline constexpr std::size_t find_first_not_of(std::string_view this_,
+                                                 std::string_view sv) {
+    for (std::size_t i = 0; i < this_.size(); ++i) {
+      std::size_t index = find(sv, this_[i]);
+      if (index == std::string_view::npos) {
+        return i;
+      }
+    }
+    return std::string_view::npos;
+  }
+
   template <typename... Ts>
   inline constexpr bool false_v = false;
 

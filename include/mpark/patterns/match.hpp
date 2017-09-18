@@ -447,10 +447,12 @@ namespace mpark::patterns {
       if constexpr (I == std::string_view::npos) {
         return std::index_sequence<>{};
       } else {
-        constexpr std::size_t comma = sv.find(',', I);
+        using namespace std::literals;
+        constexpr std::size_t comma = lib::find(sv, ',', I);
         constexpr std::string_view token = sv.substr(I, comma - I);
         static_assert(token.size() != 0, "expected identifier");
-        constexpr std::size_t first = token.find_first_not_of(" \f\n\r\t\v");
+        constexpr std::size_t first =
+            lib::find_first_not_of(token, " \f\n\r\t\v"sv);
         static_assert(first != std::string_view::npos, "expected identifier");
         constexpr std::size_t next = comma == std::string_view::npos
                                          ? std::string_view::npos
