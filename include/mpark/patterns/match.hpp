@@ -206,7 +206,7 @@ namespace mpark::patterns {
     }
 
     template <typename F, typename... Args>
-    auto make_guard(F &&f, Args &&... args) {
+    auto make_guard(F &&f, Args &&... args) noexcept {
       return [&](auto &&... args_) {
         return std::invoke(std::forward<F>(f),
                            eval(std::forward<Args>(args),
@@ -218,7 +218,7 @@ namespace mpark::patterns {
 
 #define MPARK_PATTERNS_MEMBER_OPERATORS(type)                                 \
   template <typename Arg>                                                     \
-  auto operator=(Arg &&arg) const {                                           \
+  auto operator=(Arg &&arg) const noexcept {                                  \
     auto guard = make_guard(                                                  \
         [](auto &&this_, auto &&arg_) -> decltype(auto) {                     \
           using This_ = decltype(this_);                                      \
@@ -231,7 +231,7 @@ namespace mpark::patterns {
   }                                                                           \
                                                                               \
   template <typename... Args>                                                 \
-  auto operator()(Args &&... args) const {                                    \
+  auto operator()(Args &&... args) const noexcept {                           \
     auto guard = make_guard(                                                  \
         [](auto &&this_, auto &&... args_) -> decltype(auto) {                \
           using This_ = decltype(this_);                                      \
@@ -244,7 +244,7 @@ namespace mpark::patterns {
   }                                                                           \
                                                                               \
   template <typename Arg>                                                     \
-  auto operator[](Arg &&arg) const {                                          \
+  auto operator[](Arg &&arg) const noexcept {                                 \
     auto guard = make_guard(                                                  \
         [](auto &&this_, auto &&arg_) -> decltype(auto) {                     \
           using This_ = decltype(this_);                                      \
@@ -292,7 +292,7 @@ namespace mpark::patterns {
             std::enable_if_t<(is_identifier_v<std::decay_t<Arg>> ||   \
                               detail::is_guard_v<std::decay_t<Arg>>), \
                              int> = 0>                                \
-  auto operator op(Arg &&arg) {                                       \
+  auto operator op(Arg &&arg) noexcept {                              \
     auto guard = detail::make_guard(                                  \
         [](auto &&arg_) -> decltype(auto) {                           \
           return op std::forward<decltype(arg_)>(arg_);               \
@@ -306,7 +306,7 @@ namespace mpark::patterns {
             std::enable_if_t<(is_identifier_v<std::decay_t<Arg>> ||   \
                               detail::is_guard_v<std::decay_t<Arg>>), \
                              int> = 0>                                \
-  auto operator op(Arg &&arg, int) {                                  \
+  auto operator op(Arg &&arg, int) noexcept {                         \
     auto guard = detail::make_guard(                                  \
         [](auto &&arg_) -> decltype(auto) {                           \
           return std::forward<decltype(arg_)>(arg_) op;               \
@@ -323,7 +323,7 @@ namespace mpark::patterns {
                               detail::is_guard_v<std::decay_t<Lhs>> || \
                               detail::is_guard_v<std::decay_t<Rhs>>),  \
                              int> = 0>                                 \
-  auto operator op(Lhs &&lhs, Rhs &&rhs) {                             \
+  auto operator op(Lhs &&lhs, Rhs &&rhs) noexcept {                    \
     auto guard = detail::make_guard(                                   \
         [](auto &&lhs_, auto &&rhs_) -> decltype(auto) {               \
           return std::forward<decltype(lhs_)>(lhs_) op                 \
@@ -395,8 +395,8 @@ namespace mpark::patterns {
 
     // When this type of identifier is found within a `when` clause,
     // we convert it to what a guard since it can't mean anything else.
-    auto as_guard() const {
-      return Identifier<I, void>{0}.super::operator()(std::forward<Arg>(arg));
+    auto as_guard() const noexcept {
+      return Identifier<I, void>{0}.call(std::forward<Arg>(arg));
     }
 
     Arg &&arg;
@@ -418,6 +418,11 @@ namespace mpark::patterns {
     template <typename Pattern>
     auto operator()(Pattern &&pattern) const noexcept {
       return Identifier<I, Pattern>{{}, std::forward<Pattern>(pattern)};
+    }
+
+    template <typename Arg>
+    auto call(Arg &&arg) const noexcept {
+      return super::operator()(std::forward<Arg>(arg));
     }
   };
 
