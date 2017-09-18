@@ -203,7 +203,7 @@ namespace mpark::patterns {
       } else {
         return std::forward<Arg>(arg);
       }
-    };
+    }
 
     template <typename F, typename... Args>
     auto make_guard(F &&f, Args &&... args) {
@@ -337,62 +337,46 @@ namespace mpark::patterns {
 
   namespace detail {
 
+    template <std::size_t Head, std::size_t... Tail>
+    constexpr auto prepend(std::index_sequence<Tail...>) {
+      return std::index_sequence<Head, Tail...>{};
+    }
+
     template <std::size_t... Is>
-    constexpr std::tuple<Identifier<Is, void>...> identifiers_impl(
+    constexpr std::tuple<Identifier<Is, void>...> make_identifiers(
         std::index_sequence<Is...>) {
       return {Is...};
     }
 
-    template <std::size_t N>
-    constexpr auto identifiers() {
-      return identifiers_impl(std::make_index_sequence<N>{});
-    }
-
-    constexpr std::size_t count_args(const char *s) {
-      std::size_t result = 1;
-      for (const char *iter = s; iter && *iter != '\0'; ++iter) {
-        if (*iter == ',') {
-          ++result;
-        }
-      }
-      return result;
-    }
-
-    /*
-    template <typename StrView>
-    constexpr bool t_identifier(StrView str_view) {
-
-    }
-    */
-
-    /*
-    template <typename Head, typename... Tail>
-    lib::list<Head, Tail...> prepend(Head, lib::list<Tail...>);
-    */
-
-    template <std::size_t I, typename StrView>
+    template <std::size_t Bind, std::size_t Discard,
+              std::size_t I, typename StrView>
     constexpr auto parse(StrView str_view) {
       constexpr std::string_view sv = str_view();
-      if constexpr (I == sv.size()) {
+      if constexpr (I == std::string_view::npos) {
         return std::index_sequence<>{};
+      } else {
+        constexpr std::size_t comma = sv.find(',', I);
+        constexpr std::string_view token = sv.substr(I, comma - I);
+        static_assert(token.size() != 0, "expected identifier");
+        constexpr std::size_t first = token.find_first_not_of(" \f\n\r\t\v");
+        static_assert(first != std::string_view::npos, "expected identifier");
+        constexpr std::size_t next =
+            comma == std::string_view::npos ? npos : comma + 1;
+        if constexpr (token[first] == '_') {
+          return prepend<Discard>(parse<Bind, Discard + 1, next>(str_view));
+        } else {
+          return prepend<Bind>(parse<Bind + 1, Discard, next>(str_view));
+        }
       }
-      /*
-      if constexpr (I == str_
-      identifier([] { return sv.substr(I, sv.find(',', I) - I); })
-      */
-      return std::index_sequence<0, arg_index + 1, 1>{};
     }
 
   }  // namespace detail
 
-#define IDENTIFIERS(...)                                     \
-  auto [__VA_ARGS__] = mpark::patterns::detail::identifiers< \
-      mpark::patterns::detail::count_args(#__VA_ARGS__)>()
-
-#define MAGIC_IDENTIFIERS(...)                                       \
-  auto [__VA_ARGS__] = mpark::patterns::detail::identifiers_impl(    \
-      mpark::patterns::detail::parse<0>([] {                         \
-        return std::string_view(#__VA_ARGS__, sizeof(#__VA_ARGS__)); \
+#define IDENTIFIERS(...)                                          \
+  auto [__VA_ARGS__] = mpark::patterns::detail::make_identifiers( \
+      mpark::patterns::detail::parse<0, arg_index + 1, 0>([] {    \
+        using namespace std::literals;                            \
+        return #__VA_ARGS__##sv;                                  \
       }))
 
   template <std::size_t I, typename Pattern, typename Value, typename F>
@@ -694,7 +678,9 @@ namespace mpark::patterns {
     }
 
     template <typename Head, typename... Tail>
-    lib::list<Head, Tail...> prepend(Head, lib::list<Tail...>);
+    auto prepend(Head, lib::list<Tail...>) {
+      return lib::list<Head, Tail...>{};
+    }
 
     template <std::size_t P, std::size_t I>
     lib::list<lib::indexed_type<P, std::index_sequence<I>>> insert(lib::list<>);
@@ -716,10 +702,10 @@ namespace mpark::patterns {
     }
 
     template <bool (*)(std::size_t), typename... Ts>
-    lib::list<typename Ts::type...> grouped_indices(lib::list<Ts...>,
-                                                    std::index_sequence<>,
-                                                    std::index_sequence<>) {
-      return {};
+    auto grouped_indices(lib::list<Ts...>,
+                         std::index_sequence<>,
+                         std::index_sequence<>) {
+      return lib::list<typename Ts::type...>{};
     }
 
     template <bool (*pred)(std::size_t),
@@ -778,7 +764,7 @@ namespace mpark::patterns {
 
     template <typename... Ts>
     using guard_indices_t = decltype(
-        fronts(grouped_indices_t<[](std::size_t) { return true; }, Ts...>{}));
+        fronts(grouped_indices_t<+[](std::size_t) { return true; }, Ts...>{}));
 
     // Get the indices of the arguments to be passed to the final lambda.
     //
@@ -793,12 +779,12 @@ namespace mpark::patterns {
     //   (i.e., `1`) multiple times.
     template <typename... Ts>
     using args_indices_t = decltype(
-        fronts(grouped_indices_t<[](std::size_t i) { return i <= arg_index; },
+        fronts(grouped_indices_t<+[](std::size_t i) { return i <= arg_index; },
                                  Ts...>{}));
 
     template <typename... Ts>
     using equals_indices_t = grouped_indices_t<
-        [](std::size_t i) { return i != wildcard_index && i != arg_index; },
+        +[](std::size_t i) { return i != wildcard_index && i != arg_index; },
         Ts...>;
 
     template <typename Pattern, typename Rhs>
