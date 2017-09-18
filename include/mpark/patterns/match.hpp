@@ -212,7 +212,7 @@ namespace mpark::patterns {
                            eval(std::forward<Args>(args),
                                 std::forward<decltype(args_)>(args_)...)...);
       };
-    };
+    }
 
   }  // namespace detail
 
