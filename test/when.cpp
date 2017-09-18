@@ -11,6 +11,18 @@
 
 #include <gtest/gtest.h>
 
+TEST(When, SubscriptOperatorToBool) {
+  std::array<bool, 3> xs = {{false, false, true}};
+
+  using namespace mpark::patterns;
+  IDENTIFIERS(_x);
+  int result = match(xs)(pattern(ds(_x, _, _)).when(_x) = [] { return 0; },
+                         pattern(ds(_, _x, _)).when(_x) = [] { return 1; },
+                         pattern(ds(_, _, _x)).when(_x) = [] { return 2; });
+
+  EXPECT_EQ(2, result);
+}
+
 TEST(When, SubscriptOperator) {
   std::array<int, 3> xs = {{1, 2, 3}};
 

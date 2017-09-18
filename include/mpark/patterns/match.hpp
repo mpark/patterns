@@ -287,11 +287,104 @@ namespace mpark::patterns {
 
   }  // namespace detail
 
+#define MPARK_PATTERNS_UNARY_PREFIX_OPERATOR(op)                      \
+  template <typename Arg,                                             \
+            std::enable_if_t<(is_identifier_v<std::decay_t<Arg>> ||   \
+                              detail::is_guard_v<std::decay_t<Arg>>), \
+                             int> = 0>                                \
+  auto operator op(Arg &&arg) {                                       \
+    auto guard = detail::make_guard(                                  \
+        [](auto &&arg_) -> decltype(auto) {                           \
+          return op std::forward<decltype(arg_)>(arg_);               \
+        },                                                            \
+        std::forward<Arg>(arg));                                      \
+    return detail::Guard<decltype(guard)>{std::move(guard)};          \
+  }
+
+#define MPARK_PATTERNS_UNARY_POSTFIX_OPERATOR(op)                     \
+  template <typename Arg,                                             \
+            std::enable_if_t<(is_identifier_v<std::decay_t<Arg>> ||   \
+                              detail::is_guard_v<std::decay_t<Arg>>), \
+                             int> = 0>                                \
+  auto operator op(Arg &&arg, int) {                                  \
+    auto guard = detail::make_guard(                                  \
+        [](auto &&arg_) -> decltype(auto) {                           \
+          return std::forward<decltype(arg_)>(arg_) op;               \
+        },                                                            \
+        std::forward<Arg>(arg));                                      \
+    return detail::Guard<decltype(guard)>{std::move(guard)};          \
+  }
+
+#define MPARK_PATTERNS_BINARY_OPERATOR(op)                             \
+  template <typename Lhs,                                              \
+            typename Rhs,                                              \
+            std::enable_if_t<(is_identifier_v<std::decay_t<Lhs>> ||    \
+                              is_identifier_v<std::decay_t<Rhs>> ||    \
+                              detail::is_guard_v<std::decay_t<Lhs>> || \
+                              detail::is_guard_v<std::decay_t<Rhs>>),  \
+                             int> = 0>                                 \
+  auto operator op(Lhs &&lhs, Rhs &&rhs) {                             \
+    auto guard = detail::make_guard(                                   \
+        [](auto &&lhs_, auto &&rhs_) -> decltype(auto) {               \
+          return std::forward<decltype(lhs_)>(lhs_) op                 \
+                 std::forward<decltype(rhs_)>(rhs_);                   \
+        },                                                             \
+        std::forward<Lhs>(lhs),                                        \
+        std::forward<Rhs>(rhs));                                       \
+    return detail::Guard<decltype(guard)>{std::move(guard)};           \
+  }
+
+  MPARK_PATTERNS_UNARY_PREFIX_OPERATOR(+)
+  MPARK_PATTERNS_UNARY_PREFIX_OPERATOR(-)
+  MPARK_PATTERNS_UNARY_PREFIX_OPERATOR(*)
+  MPARK_PATTERNS_UNARY_PREFIX_OPERATOR(~)
+  MPARK_PATTERNS_UNARY_PREFIX_OPERATOR(&)
+  MPARK_PATTERNS_UNARY_PREFIX_OPERATOR(!)
+  MPARK_PATTERNS_UNARY_PREFIX_OPERATOR(++)
+  MPARK_PATTERNS_UNARY_PREFIX_OPERATOR(--)
+
+  MPARK_PATTERNS_UNARY_POSTFIX_OPERATOR(++)
+  MPARK_PATTERNS_UNARY_POSTFIX_OPERATOR(--)
+
+  MPARK_PATTERNS_BINARY_OPERATOR(<<)
+  MPARK_PATTERNS_BINARY_OPERATOR(>>)
+  MPARK_PATTERNS_BINARY_OPERATOR(*)
+  MPARK_PATTERNS_BINARY_OPERATOR(/)
+  MPARK_PATTERNS_BINARY_OPERATOR(%)
+  MPARK_PATTERNS_BINARY_OPERATOR(+)
+  MPARK_PATTERNS_BINARY_OPERATOR(-)
+  MPARK_PATTERNS_BINARY_OPERATOR(<)
+  MPARK_PATTERNS_BINARY_OPERATOR(>)
+  MPARK_PATTERNS_BINARY_OPERATOR(<=)
+  MPARK_PATTERNS_BINARY_OPERATOR(>=)
+  MPARK_PATTERNS_BINARY_OPERATOR(==)
+  MPARK_PATTERNS_BINARY_OPERATOR(!=)
+  MPARK_PATTERNS_BINARY_OPERATOR(||)
+  MPARK_PATTERNS_BINARY_OPERATOR(&&)
+  MPARK_PATTERNS_BINARY_OPERATOR(&)
+  MPARK_PATTERNS_BINARY_OPERATOR(|)
+  MPARK_PATTERNS_BINARY_OPERATOR(^)
+  MPARK_PATTERNS_BINARY_OPERATOR(->*)
+  MPARK_PATTERNS_BINARY_OPERATOR(<<=)
+  MPARK_PATTERNS_BINARY_OPERATOR(>>=)
+  MPARK_PATTERNS_BINARY_OPERATOR(*=)
+  MPARK_PATTERNS_BINARY_OPERATOR(/=)
+  MPARK_PATTERNS_BINARY_OPERATOR(%=)
+  MPARK_PATTERNS_BINARY_OPERATOR(+=)
+  MPARK_PATTERNS_BINARY_OPERATOR(-=)
+  MPARK_PATTERNS_BINARY_OPERATOR(&=)
+  MPARK_PATTERNS_BINARY_OPERATOR(|=)
+  MPARK_PATTERNS_BINARY_OPERATOR(^=)
+
+#define MPARK_PATTERNS_COMMA ,
+  MPARK_PATTERNS_BINARY_OPERATOR(MPARK_PATTERNS_COMMA)
+#undef MPARK_PATTERNS_COMMA
+
   // Identifier Pattern
 
-  template <std::size_t I, typename Pattern>
-  struct Identifier : detail::IdentifierBase<I, Pattern> {
-    using super = detail::IdentifierBase<I, Pattern>;
+  template <std::size_t I, typename Arg>
+  struct Identifier : detail::IdentifierBase<I, Arg> {
+    using super = detail::IdentifierBase<I, Arg>;
 
     Identifier(const Identifier &) = delete;
     Identifier &operator=(const Identifier &) = delete;
@@ -300,14 +393,13 @@ namespace mpark::patterns {
     using super::operator();
     using super::operator[];
 
-    // When this type of identifier is found within a `when` clause, we convert
-    // it to the guard since that's what the user must have meant.
+    // When this type of identifier is found within a `when` clause,
+    // we convert it to what a guard since it can't mean anything else.
     auto as_guard() const {
-      return Identifier<I, void>{0}.super::operator()(
-          std::forward<Pattern>(pattern));
+      return Identifier<I, void>{0}.super::operator()(std::forward<Arg>(arg));
     }
 
-    Pattern &&pattern;
+    Arg &&arg;
   };
 
   template <std::size_t I>
@@ -391,7 +483,7 @@ namespace mpark::patterns {
     };
     if constexpr (Identifier<I, Pattern>::has_pattern) {
       return try_match(
-          identifier.pattern, std::forward<Value>(value), std::move(f_));
+          identifier.arg, std::forward<Value>(value), std::move(f_));
     } else {
       return f_();
     }
@@ -646,9 +738,10 @@ namespace mpark::patterns {
       static_assert(
           result != detail::DsPatternCheckResult::NotEnoughPatterns,
           "There are not enough patterns provided to match the values.");
-      static_assert(
-          result != detail::DsPatternCheckResult::TooManyPatterns,
-          "There are too many patterns provided to match the values.");
+      static_assert(result != detail::DsPatternCheckResult::TooManyPatterns,
+                    "There are too many patterns provided to match the values. "
+                    "Are you trying to match a destructurable type without a "
+                    "`ds` pattern?");
       using Is = std::make_index_sequence<size()>;
       return detail::try_match_impl(detail::expand_variadics(ds, Is{}),
                                     std::forward<Values>(values),
@@ -701,14 +794,16 @@ namespace mpark::patterns {
       }
     }
 
-    template <bool (*)(std::size_t), typename... Ts>
+    using Pred = bool (*)(std::size_t);
+
+    template <Pred, typename... Ts>
     auto grouped_indices(lib::list<Ts...>,
                          std::index_sequence<>,
                          std::index_sequence<>) {
       return lib::list<typename Ts::type...>{};
     }
 
-    template <bool (*pred)(std::size_t),
+    template <Pred pred,
               typename... Ts,
               std::size_t P, std::size_t... Ps,
               std::size_t I, std::size_t... Is>
@@ -746,7 +841,7 @@ namespace mpark::patterns {
     //   compare equal in order for the pattern to match. Specifically,
     //   the values that the `x` placeholder binds to, at index 0 and 2,
     //   would need to compare equal in order for this pattern to match.
-    template <bool (*pred)(std::size_t), typename... Ts>
+    template <Pred pred, typename... Ts>
     using grouped_indices_t =
         decltype(grouped_indices<pred>(lib::list<>{},
                                        std::index_sequence<Ts::index...>{},
@@ -762,9 +857,11 @@ namespace mpark::patterns {
     std::index_sequence<front_v<GroupedIndices>...> fronts(
         lib::list<GroupedIndices...>);
 
+    inline constexpr Pred guard_fn = [](std::size_t) { return true; };
+
     template <typename... Ts>
-    using guard_indices_t = decltype(
-        fronts(grouped_indices_t<+[](std::size_t) { return true; }, Ts...>{}));
+    using guard_indices_t =
+        decltype(fronts(grouped_indices_t<guard_fn, Ts...>{}));
 
     // Get the indices of the arguments to be passed to the final lambda.
     //
@@ -777,15 +874,20 @@ namespace mpark::patterns {
     //   lambda, are the first element of each of the lists. In this case,
     //   We want `[0, 1, 3]`, so that we don't pass the value matched by `x`
     //   (i.e., `1`) multiple times.
-    template <typename... Ts>
-    using args_indices_t = decltype(
-        fronts(grouped_indices_t<+[](std::size_t i) { return i <= arg_index; },
-                                 Ts...>{}));
+    inline constexpr Pred args_fn = [](std::size_t i) {
+      return i <= arg_index;
+    };
 
     template <typename... Ts>
-    using equals_indices_t = grouped_indices_t<
-        +[](std::size_t i) { return i != wildcard_index && i != arg_index; },
-        Ts...>;
+    using args_indices_t =
+        decltype(fronts(grouped_indices_t<args_fn, Ts...>{}));
+
+    inline constexpr Pred equals_fn = [](std::size_t i) {
+      return i != wildcard_index && i != arg_index;
+    };
+
+    template <typename... Ts>
+    using equals_indices_t = grouped_indices_t<equals_fn, Ts...>;
 
     template <typename Pattern, typename Rhs>
     struct Case {
@@ -822,10 +924,18 @@ namespace mpark::patterns {
         return Case<Pattern, Rhs>{std::move(*this), std::forward<Rhs>(rhs)};
       }
 
-      template <typename F>
-      auto when(Guard<F> &&guard) && noexcept {
-        return Pattern<true, F, Patterns...>{std::move(guard),
-                                             std::move(patterns)};
+      template <typename Arg,
+                std::enable_if_t<(is_identifier_v<std::decay_t<Arg>> ||
+                                  detail::is_guard_v<std::decay_t<Arg>>),
+                                 int> = 0>
+      auto when(Arg &&arg) && noexcept {
+        auto guard = detail::make_guard(
+            [](auto &&arg_) -> bool {
+              return std::forward<decltype(arg_)>(arg_);
+            },
+            std::forward<Arg>(arg));
+        return Pattern<true, decltype(guard), Patterns...>{{std::move(guard)},
+                                                           std::move(patterns)};
       }
 
       Ds<Patterns...> patterns;
