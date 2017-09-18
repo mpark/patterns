@@ -452,8 +452,9 @@ namespace mpark::patterns {
         static_assert(token.size() != 0, "expected identifier");
         constexpr std::size_t first = token.find_first_not_of(" \f\n\r\t\v");
         static_assert(first != std::string_view::npos, "expected identifier");
-        constexpr std::size_t next =
-            comma == std::string_view::npos ? npos : comma + 1;
+        constexpr std::size_t next = comma == std::string_view::npos
+                                         ? std::string_view::npos
+                                         : comma + 1;
         if constexpr (token[first] == '_') {
           return prepend<Discard>(parse<Bind, Discard + 1, next>(str_view));
         } else {
