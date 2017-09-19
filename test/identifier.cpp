@@ -20,11 +20,8 @@ TEST(Identifier, Simple) {
   IDENTIFIERS(x, y, z);
   int actual = match(t, o)(
       pattern(ds(x, x, x), some(x)) = [](auto &&) { return 1; },
-      pattern(ds(x, y, y), some(x)) = [](auto &&, auto &&) { return 2; },
-      pattern(ds(x, y, x), some(y)) = [](auto &&, auto &&) { return 3; },
-      pattern(ds(y, y, x), some(z)) = [](auto &&, auto &&, auto &&) {
-        return 4;
-      });
+      pattern(ds(x, y, x), some(y)) = [](auto &&, auto &&) { return 2; },
+      pattern(_, _) = [] { return 3; });
 
   EXPECT_EQ(3, actual);
 }

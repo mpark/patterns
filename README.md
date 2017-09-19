@@ -90,41 +90,11 @@ int factorial(int n) {
 }
 ```
 
-### Wildcard Pattern
-
-A _wildcard pattern_ matches and ignores any value.
-
-#### Requirements
-
-None.
-
-#### Syntax
-
-  - `_` (underscore)
-
-#### Examples
-
-```cpp
-int factorial(int n) {
-  using namespace mpark::patterns;
-  return match(n)(pattern(0) = [] { return 1; },
-                  pattern(_) = [n] { return n * factorial(n - 1); });
-                  //      ^ wildcard
-}
-```
-
-### Binding Patterns
-
-A _binding pattern_ passes matching values to corresponding handler.
-
-There are two types of binding patterns:
-  * Arg Pattern
-  * Identifier Pattern
-
 ### Arg Pattern
 
-A _arg pattern_ passes any matching values to the corresponding handler.
-It can be used multiple times, and they match independent of each other.
+An _arg pattern_ matches any value, and __binds__ the value by passing it
+to the corresponding handler. This pattern can be repeated in a single pattern,
+and they match independent of each other.
 
 #### Requirements
 
@@ -132,8 +102,8 @@ None.
 
 #### Syntax
 
+  - `arg`
   - `arg(<pattern>)`
-  - `arg` -- alias for `arg(_)`
 
 #### Examples
 
@@ -154,14 +124,41 @@ match(202, 101)(pattern(101, arg) = [](auto) { /* ... */ },
                 //      ^^^  ^^^ arg
 ```
 
+### Wildcard Pattern
+
+A _wildcard pattern_ matches any value and __discards__ the value by __not__
+passing it to the corresponding handler. This pattern can be repeated within
+a single pattern, and they match independent of each other.
+
+#### Requirements
+
+None.
+
+#### Syntax
+
+  - `_` (underscore)
+
+#### Examples
+
+```cpp
+int factorial(int n) {
+  using namespace mpark::patterns;
+  return match(n)(pattern(0) = [] { return 1; },
+                  pattern(_) = [n] { return n * factorial(n - 1); });
+                  //      ^ wildcard
+}
+```
+
 ### Identifier Pattern
 
-An _identifier pattern_ is similar to the _arg pattern_ in that it is a binding
-pattern. It matches any values and passes them to the corresponding handler.
+An _identifier pattern_ is similar to `arg` and `_` in that it matches any value.
 
-It can be also be used multiple times, with an additional constraint that
-the values bound to the repeated identifiers must compare equal in order
-for the enclosing pattern to match.
+Two major differences are:
+  1. Ability to operate on __names__ rather than just `arg` or `_`.
+  2. When an identifier is repeated within a single pattern, the values bound
+     to the repeated identifiers must compare equal for the pattern to match.
+
+There are two types of identifier patterns: __binding__ and __discarding__.
 
 #### Requirements
 
@@ -172,32 +169,63 @@ Then `(... && (x == xs))` must be a valid expression for each repeated identifie
 
 #### Syntax
 
-  - IDENTIFIERS(<identifier>...);
+  - `IDENTIFIERS(<identifier>...);`
+
+  - `<identifier>`
   - `<identifier>(<pattern>)`
-  - `<identifier>` -- alias for `<identifier>(_)`
+
+If `<identifier>` has a leading `_` (underscore), it is a __discarding__
+identifier. Otherwise, it is a __binding__ identifier.
 
 #### Examples
 
 ```cpp
-using namespace mpark::patterns;
-IDENTIFIERS(x, y);
-match(101, 202)(
-    pattern(x, x) = [](auto x) { std::cout << "same\n"; },
-    //      ^  ^ identifier
-    pattern(x, y) = [](auto x, auto y) { std::cout << "diff\n"; });
-    //      ^  ^ identifier
-// prints: "diff"
+void is_same(int lhs, int rhs) {
+  using namespace mpark::patterns;
+  IDENTIFIERS(x, y);
+  match(lhs, rhs)(
+      pattern(x, x) = [](auto) { std::cout << "same\n"; },
+      //      ^  ^ binding identifier (repeated)
+      pattern(x, y) = [](auto, auto) { std::cout << "diff\n"; }
+      //      ^  ^ binding identifier
+  );
+}
+
+is_same(101, 101);  // prints: "same"
+is_same(101, 202);  // prints: "diff"
 ```
 
 ```cpp
+void is_same(int lhs, rhs) {
+  using namespace mpark::patterns;
+  IDENTIFIERS(_x, _y);
+  match(42, 42)(
+      pattern(_x, _x) = [] { std::cout << "same\n"; },
+      //      ^   ^ discarding identifier (repeated)
+      pattern(_x, _y) = [] { std::cout << "diff\n"; }
+      //      ^   ^ discarding identifier
+  );
+}
+
+is_same(101, 101);  // prints: "same"
+is_same(101, 202);  // prints: "diff"
+```
+
+```cpp
+std::tuple<int, int, int> t = {101, 202};
+std::optional<int> o = 101;
+
 using namespace mpark::patterns;
 IDENTIFIERS(x, y);
-match(42, 42)(
-    pattern(x, x) = [](auto x) { std::cout << "same\n"; },
-    //      ^  ^ identifier
-    pattern(x, y) = [](auto x, auto y) { std::cout << "diff\n"; });
-    //      ^  ^ identifier
-// prints: "same"
+match(t, o)(
+    pattern(ds(x, x), some(x)) = [](auto x) {
+      std::cout << "They're all " << x << "!\n";
+    },
+    pattern(ds(x, y), some(x)) = [](auto x, auto y) {
+      std::cout << "I recognize x-y-x!\n";
+    },
+    pattern(_) = [] { std::cout << "I don't know.\n"; });
+// prints: "I recognize x-y-x!"
 ```
 
 ### Destructure Pattern

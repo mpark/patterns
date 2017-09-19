@@ -743,13 +743,11 @@ namespace mpark::patterns {
       static_assert(
           result != detail::DsPatternCheckResult::TooManyVariadics,
           "The variadic pattern can only appear once in a `ds` pattern.");
-      static_assert(
-          result != detail::DsPatternCheckResult::NotEnoughPatterns,
-          "There are not enough patterns provided to match the values.");
+      static_assert(result != detail::DsPatternCheckResult::NotEnoughPatterns,
+                    "Not enough patterns are provided to match the values.");
       static_assert(result != detail::DsPatternCheckResult::TooManyPatterns,
-                    "There are too many patterns provided to match the values. "
-                    "Are you trying to match a destructurable type without a "
-                    "`ds` pattern?");
+                    "More patterns are provided than values. Are you trying to "
+                    "match a destructurable type without a `ds` pattern?");
       using Is = std::make_index_sequence<size()>;
       return detail::try_match_impl(detail::expand_variadics(ds, Is{}),
                                     std::forward<Values>(values),
