@@ -521,9 +521,9 @@ test whether the bound values satisfy some predicate.
 
 A `when` clause takes a lazy expression, and invokes the handler only
 if the expression evaluates to `true`. A lazy expression is an expression
-formed with identifier patterns. For example, given an identifier `x`,
-the expression `x % 5 == 0` is a lazy expression where the `x` is filled
-in by the value that the identifier `x` matches.
+formed with identifier patterns. For example, given an identifier pattern
+`x`, the expression `x % 5 == 0` is a lazy expression where the `x` is
+filled in by the value that the identifier `x` matches.
 
 #### Requirements
 
@@ -532,7 +532,7 @@ convertible to `bool`.
 
 #### Syntax
 
-  - `pattern(<pattern>...).when(<lazy_expr>)`
+  - `.when(<lazy_expr>)`
 
 #### Examples
 
