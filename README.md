@@ -121,10 +121,9 @@ using P = std::pair<int, int>;
 P p = {101, 202};
 
 using namespace mpark::patterns;
-match(x)(
-    pattern(arg(ds(101, _))) = [](P& p) { std::cout << "pair!\n"; },
-    //      ^^^ pass the pair!
-    pattern(_) = [] { std::cout << "not a pair\n"; });
+match(x)(pattern(arg(ds(101, _))) = [](P& p) { std::cout << "pair!\n"; },
+         //      ^^^ pass the pair!
+         pattern(_) = [] { std::cout << "not a pair\n"; });
 // prints: "pair!"
 ```
 
@@ -168,13 +167,14 @@ There are two types of identifier patterns: __binding__ and __discarding__.
 
 If no identifiers are repeated, none.
 
-Otherwise, let `x, xs...` be the values matched by a repeated identifier.
-Then `(... && (x == xs))` must be a valid expression for each repeated identifier.
+Otherwise, let `x` be a repeated identifer and `v, vs...` be the group of values
+matched by the repeated instances of `x`. Then `(... && (v == vs))` must be a
+valid expression. The same requirement applies to any other repeated identifiers
+in a single pattern.
 
 #### Syntax
 
   - `IDENTIFIERS(<identifier>...);`
-
   - `<identifier>`
   - `<identifier>(<pattern>)`
 
@@ -234,7 +234,7 @@ match(t, o)(
 
 ### Destructure Pattern
 
-A _destructure pattern_ matches values that holds multiple values.
+A _destructure pattern_ matches values that hold multiple values.
 
 #### Requirements
 
@@ -267,17 +267,15 @@ __NOTE__: These requirements are very similar to the requirements for
 auto t = std::make_tuple(101, "hello", 1.1);
 
 // C++17 Structured Bindings:
-const auto& [x, y, z] = t;
+const auto & [x, y, z] = t;
 // ...
 
 // MPark.Patterns:
 using namespace mpark::patterns;
-placeholder x, y, z;
+IDENTIFIERS(x, y, z);
 match(t)(
-    pattern(ds(x, y, z)) = [](const auto& x, const auto& y, const auto& z) {
+    pattern(ds(x, y, z)) = [](auto &&x, auto &&y, auto &&z) { /* ... */ });
     //      ^^^^^^^^^^^ destructure
-      // ...
-    });
 ```
 
 __NOTE__: The top-level is wrapped by a `tuple`, allowing us to write:
