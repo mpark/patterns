@@ -17,7 +17,7 @@ TEST(Identifier, Simple) {
   std::optional<int> o = 202;
 
   using namespace mpark::patterns;
-  IDENTIFIERS(x, y, z);
+  IDENTIFIERS(x, y);
   int actual = match(t, o)(
       pattern(ds(x, x, x), some(x)) = [](auto &&) { return 1; },
       pattern(ds(x, y, x), some(y)) = [](auto &&, auto &&) { return 2; },

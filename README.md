@@ -58,8 +58,8 @@ int main() {
 using namespace mpark::patterns;
 IDENTIFIERS(<identifier>...);  // optional
 match(<expr>...)(
-    pattern(<pattern>...) = [](<binding>...) { /* ... */ },
-    pattern(<pattern>...) = [](<binding>...) { /* ... */ },
+    pattern(<pattern>...) [.when(<lazy_expr>)] = [](<binding>...) { /* ... */ },
+    pattern(<pattern>...) [.when(<lazy_expr>)] = [](<binding>...) { /* ... */ },
     // ...
 );
 ```
@@ -513,33 +513,36 @@ match(x, y)(
 
 ## Pattern Guards
 
-While pattern matching is used to match values against patterns and bind the
-desired portions, pattern guards are used to test whether the bound values
-satisfy some predicate.
+While pattern matching is very useful to match values against patterns,
+it mainly focuses on equality comparisons. Pattern guards are used to
+test whether the bound values satisfy some predicate.
+
+### `when` Clause
+
+A `when` clause takes a lazy expression, and invokes the handler only
+if the expression evaluates to `true`. A lazy expression is an expression
+formed with identifier patterns. For example, given an identifier `x`,
+the expression `x % 5 == 0` is a lazy expression where the `x` is filled
+in by the value that the identifier `x` matches.
 
 #### Requirements
 
-A _pattern guard_ must be the only statement in a handler.
+The evaluated result of the lazy expression must be contextually
+convertible to `bool`.
 
 #### Syntax
 
-  - `WHEN(<condition>) { /* ... */ };`
+  - `pattern(<pattern>...).when(<lazy_expr>)`
 
 #### Examples
 
 ```cpp
 using namespace mpark::patterns;
-placeholder lhs, rhs;
+IDENTIFIERS(_x, _y);
 match(101, 202)(
-    pattern(lhs, rhs) = [](auto &&lhs, auto &&rhs) {
-      WHEN(lhs > rhs) { std::cout << "GT\n"; };
-    },
-    pattern(lhs, rhs) = [](auto &&lhs, auto &&rhs) {
-      WHEN(lhs < rhs) { std::cout << "LT\n"; };
-    },
-    pattern(lhs, rhs) = [](auto &&lhs, auto &&rhs) {
-      WHEN(lhs == rhs) { std::cout << "EQ\n"; };
-    });
+    pattern(_x, _x) = [] { std::cout << "EQ\n"; },
+    pattern(_x, _y).when(_x > _y) = [] { std::cout << "GT\n"; },
+    pattern(_x, _y).when(_x < _y) = [] { std::cout << "LT\n"; });
 // prints: "LT"
 ```
 

@@ -106,13 +106,13 @@ namespace mpark::patterns {
   namespace detail {
 
     template <typename F>
-    struct Guard;
+    struct LazyExpr;
 
     template <typename T>
-    inline constexpr bool is_guard_v = false;
+    inline constexpr bool is_lazy_expr_v = false;
 
     template <typename F>
-    inline constexpr bool is_guard_v<Guard<F>> = true;
+    inline constexpr bool is_lazy_expr_v<LazyExpr<F>> = true;
 
   }  // namespace detail
 
@@ -184,42 +184,44 @@ namespace mpark::patterns {
     inline constexpr std::size_t find_indexed_forwarder_v =
         find_indexed_forwarder<I, T>::value;
 
-    template <typename Arg, typename... Args>
-    decltype(auto) eval(Arg &&arg, Args &&... args) {
-      auto args_tuple = std::forward_as_tuple(std::forward<Args>(args)...);
+    template <typename Arg, std::size_t... Is, typename... Ts>
+    decltype(auto) eval(Arg &&arg,
+                        std::tuple<indexed_forwarder<Is, Ts> &&...> &&ifs) {
       using Decayed = std::decay_t<Arg>;
       if constexpr (is_identifier_v<Decayed>) {
         if constexpr (Decayed::has_pattern) {
-          return std::invoke(std::forward<Arg>(arg).as_guard().f,
-                             std::forward<Args>(args)...);
+          return std::forward<Arg>(arg).as_lazy_expr().lambda(std::move(ifs));
         } else {
-          constexpr std::size_t i =
-              find_indexed_forwarder_v<Decayed::index, decltype(args_tuple)>;
-          return std::get<i>(std::move(args_tuple)).forward();
+          constexpr std::size_t i = find_indexed_forwarder_v<
+              Decayed::index,
+              std::tuple<indexed_forwarder<Is, Ts> &&...>>;
+          return std::get<i>(std::move(ifs)).forward();
         }
-      } else if constexpr (is_guard_v<Decayed>) {
-        return std::invoke(std::forward<Arg>(arg).f,
-                           std::forward<Args>(args)...);
+      } else if constexpr (is_lazy_expr_v<Decayed>) {
+        return std::forward<Arg>(arg).lambda(std::move(ifs));
       } else {
         return std::forward<Arg>(arg);
       }
     }
 
+  }  // namespace detail
+
+  namespace detail {
+
     template <typename F, typename... Args>
-    auto make_guard(F &&f, Args &&... args) noexcept {
-      return [&](auto &&... args_) {
-        return std::invoke(std::forward<F>(f),
-                           eval(std::forward<Args>(args),
-                                std::forward<decltype(args_)>(args_)...)...);
+    auto make_lambda(F f, Args &&... args) noexcept {
+      return [&, f = std::move(f)](auto &&ifs) -> decltype(auto) {
+        static_assert(lib::is_rref_v<decltype(ifs)>);
+        return f(eval(std::forward<Args>(args), std::move(ifs))...);
       };
     }
 
-  }  // namespace detail
-
+    template <typename Lambda>
+    struct LazyExpr {
 #define MPARK_PATTERNS_MEMBER_OPERATORS(type)                                 \
   template <typename Arg>                                                     \
   auto operator=(Arg &&arg) const noexcept {                                  \
-    auto guard = make_guard(                                                  \
+    auto lambda = make_lambda(                                                \
         [](auto &&this_, auto &&arg_) -> decltype(auto) {                     \
           using This_ = decltype(this_);                                      \
           using Arg_ = decltype(arg_);                                        \
@@ -227,32 +229,32 @@ namespace mpark::patterns {
         },                                                                    \
         static_cast<const type &>(*this),                                     \
         std::forward<Arg>(arg));                                              \
-    return Guard<decltype(guard)>{std::move(guard)};                          \
+    return LazyExpr<decltype(lambda)>{std::move(lambda)};                     \
   }                                                                           \
                                                                               \
   template <typename... Args>                                                 \
   auto operator()(Args &&... args) const noexcept {                           \
-    auto guard = make_guard(                                                  \
+    auto lambda = make_lambda(                                                \
         [](auto &&this_, auto &&... args_) -> decltype(auto) {                \
           using This_ = decltype(this_);                                      \
-          return std::invoke(std::forward<This_>(this_),                      \
-                             std::forward<decltype(args_)>(args_)...);        \
+          return std::forward<This_>(this_)(                                  \
+              std::forward<decltype(args_)>(args_)...);                       \
         },                                                                    \
         static_cast<const type &>(*this),                                     \
         std::forward<Args>(args)...);                                         \
-    return Guard<decltype(guard)>{std::move(guard)};                          \
+    return LazyExpr<decltype(lambda)>{std::move(lambda)};                     \
   }                                                                           \
                                                                               \
   template <typename Arg>                                                     \
   auto operator[](Arg &&arg) const noexcept {                                 \
-    auto guard = make_guard(                                                  \
+    auto lambda = make_lambda(                                                \
         [](auto &&this_, auto &&arg_) -> decltype(auto) {                     \
           using This_ = decltype(this_);                                      \
           using Arg_ = decltype(arg_);                                        \
           if constexpr (std::is_array_v<std::remove_reference_t<This_>>) {    \
             /* For arrays, we handle the forwarding explicitly because     */ \
             /* `std::forward<T>(t)[I]` always yields an lvalue-ref on GCC. */ \
-            if constexpr (std::is_rvalue_reference_v<This_>) {                \
+            if constexpr (lib::is_rref_v<This_>) {                            \
               return std::move(this_[std::forward<Arg_>(arg_)]);              \
             } else {                                                          \
               return this_[std::forward<Arg_>(arg_)];                         \
@@ -263,17 +265,19 @@ namespace mpark::patterns {
         },                                                                    \
         static_cast<const type &>(*this),                                     \
         std::forward<Arg>(arg));                                              \
-    return Guard<decltype(guard)>{std::move(guard)};                          \
+    return LazyExpr<decltype(lambda)>{std::move(lambda)};                     \
   }
 
-  namespace detail {
+      MPARK_PATTERNS_MEMBER_OPERATORS(LazyExpr)
 
-    template <typename F>
-    struct Guard {
-      MPARK_PATTERNS_MEMBER_OPERATORS(Guard)
-
-      F f;
+      Lambda lambda;
     };
+
+    template <typename F, typename... Args>
+    auto make_lazy_expr(F f, Args &&... args) noexcept {
+      auto lambda = make_lambda(std::move(f), std::forward<Args>(args)...);
+      return LazyExpr<decltype(lambda)>{std::move(lambda)};
+    }
 
     template <std::size_t I, typename Pattern>
     struct IdentifierBase {
@@ -287,51 +291,48 @@ namespace mpark::patterns {
 
   }  // namespace detail
 
-#define MPARK_PATTERNS_UNARY_PREFIX_OPERATOR(op)                      \
-  template <typename Arg,                                             \
-            std::enable_if_t<(is_identifier_v<std::decay_t<Arg>> ||   \
-                              detail::is_guard_v<std::decay_t<Arg>>), \
-                             int> = 0>                                \
-  auto operator op(Arg &&arg) noexcept {                              \
-    auto guard = detail::make_guard(                                  \
-        [](auto &&arg_) -> decltype(auto) {                           \
-          return op std::forward<decltype(arg_)>(arg_);               \
-        },                                                            \
-        std::forward<Arg>(arg));                                      \
-    return detail::Guard<decltype(guard)>{std::move(guard)};          \
+#define MPARK_PATTERNS_UNARY_PREFIX_OPERATOR(op)                          \
+  template <typename Arg,                                                 \
+            std::enable_if_t<(is_identifier_v<std::decay_t<Arg>> ||       \
+                              detail::is_lazy_expr_v<std::decay_t<Arg>>), \
+                             int> = 0>                                    \
+  auto operator op(Arg &&arg) noexcept {                                  \
+    return detail::make_lazy_expr(                                        \
+        [](auto &&arg_) -> decltype(auto) {                               \
+          return op std::forward<decltype(arg_)>(arg_);                   \
+        },                                                                \
+        std::forward<Arg>(arg));                                          \
   }
 
-#define MPARK_PATTERNS_UNARY_POSTFIX_OPERATOR(op)                     \
-  template <typename Arg,                                             \
-            std::enable_if_t<(is_identifier_v<std::decay_t<Arg>> ||   \
-                              detail::is_guard_v<std::decay_t<Arg>>), \
-                             int> = 0>                                \
-  auto operator op(Arg &&arg, int) noexcept {                         \
-    auto guard = detail::make_guard(                                  \
-        [](auto &&arg_) -> decltype(auto) {                           \
-          return std::forward<decltype(arg_)>(arg_) op;               \
-        },                                                            \
-        std::forward<Arg>(arg));                                      \
-    return detail::Guard<decltype(guard)>{std::move(guard)};          \
+#define MPARK_PATTERNS_UNARY_POSTFIX_OPERATOR(op)                         \
+  template <typename Arg,                                                 \
+            std::enable_if_t<(is_identifier_v<std::decay_t<Arg>> ||       \
+                              detail::is_lazy_expr_v<std::decay_t<Arg>>), \
+                             int> = 0>                                    \
+  auto operator op(Arg &&arg, int) noexcept {                             \
+    return detail::make_lazy_expr(                                        \
+        [](auto &&arg_) -> decltype(auto) {                               \
+          return std::forward<decltype(arg_)>(arg_) op;                   \
+        },                                                                \
+        std::forward<Arg>(arg));                                          \
   }
 
-#define MPARK_PATTERNS_BINARY_OPERATOR(op)                             \
-  template <typename Lhs,                                              \
-            typename Rhs,                                              \
-            std::enable_if_t<(is_identifier_v<std::decay_t<Lhs>> ||    \
-                              is_identifier_v<std::decay_t<Rhs>> ||    \
-                              detail::is_guard_v<std::decay_t<Lhs>> || \
-                              detail::is_guard_v<std::decay_t<Rhs>>),  \
-                             int> = 0>                                 \
-  auto operator op(Lhs &&lhs, Rhs &&rhs) noexcept {                    \
-    auto guard = detail::make_guard(                                   \
-        [](auto &&lhs_, auto &&rhs_) -> decltype(auto) {               \
-          return std::forward<decltype(lhs_)>(lhs_) op                 \
-                 std::forward<decltype(rhs_)>(rhs_);                   \
-        },                                                             \
-        std::forward<Lhs>(lhs),                                        \
-        std::forward<Rhs>(rhs));                                       \
-    return detail::Guard<decltype(guard)>{std::move(guard)};           \
+#define MPARK_PATTERNS_BINARY_OPERATOR(op)                                 \
+  template <typename Lhs,                                                  \
+            typename Rhs,                                                  \
+            std::enable_if_t<(is_identifier_v<std::decay_t<Lhs>> ||        \
+                              is_identifier_v<std::decay_t<Rhs>> ||        \
+                              detail::is_lazy_expr_v<std::decay_t<Lhs>> || \
+                              detail::is_lazy_expr_v<std::decay_t<Rhs>>),  \
+                             int> = 0>                                     \
+  auto operator op(Lhs &&lhs, Rhs &&rhs) noexcept {                        \
+    return detail::make_lazy_expr(                                         \
+        [](auto &&lhs_, auto &&rhs_) -> decltype(auto) {                   \
+          return std::forward<decltype(lhs_)>(lhs_)                        \
+              op std::forward<decltype(rhs_)>(rhs_);                       \
+        },                                                                 \
+        std::forward<Lhs>(lhs),                                            \
+        std::forward<Rhs>(rhs));                                           \
   }
 
   MPARK_PATTERNS_UNARY_PREFIX_OPERATOR(+)
@@ -394,8 +395,8 @@ namespace mpark::patterns {
     using super::operator[];
 
     // When this type of identifier is found within a `when` clause,
-    // we convert it to what a guard since it can't mean anything else.
-    auto as_guard() const noexcept {
+    // we convert it to a lazy-expr since it can't mean anything else.
+    auto as_lazy_expr() const noexcept {
       return Identifier<I, void>{0}.call(std::forward<Arg>(arg));
     }
 
@@ -483,11 +484,12 @@ namespace mpark::patterns {
   auto try_match(const Identifier<I, Pattern> &identifier,
                  Value &&value,
                  F &&f) {
-    auto f_ = [&](auto &&... args) {
+    auto f_ = [&](auto &&... ifs) {
+      static_assert((... && lib::is_rref_v<decltype(ifs)>));
       return match_invoke(
           std::forward<F>(f),
           detail::indexed_forwarder<I, Value &&>{std::forward<Value>(value)},
-          std::forward<decltype(args)>(args)...);
+          std::move(ifs)...);
     };
     if constexpr (Identifier<I, Pattern>::has_pattern) {
       return try_match(
@@ -586,7 +588,7 @@ namespace mpark::patterns {
             if constexpr (std::is_array_v<std::remove_reference_t<Values>>) {
               // We handle the forwarding explicitly because
               // `std::forward<T>(t)[I]` always yields an lvalue-ref on GCC.
-              if constexpr (std::is_rvalue_reference_v<Values &&>) {
+              if constexpr (lib::is_rref_v<Values &&>) {
                 return std::move(values[I]);
               } else {
                 return values[I];
@@ -607,15 +609,16 @@ namespace mpark::patterns {
               }
             }
           }(),
-          [&](auto &&... head_args) {
+          [&](auto &&... head_ifs) {
+            static_assert((... && lib::is_rref_v<decltype(head_ifs)>));
             return try_match_impl(
                 ds,
                 std::forward<Values>(values),
-                [&](auto &&... tail_args) {
-                  return match_invoke(
-                      std::forward<F>(f),
-                      std::forward<decltype(head_args)>(head_args)...,
-                      std::forward<decltype(tail_args)>(tail_args)...);
+                [&](auto &&... tail_ifs) {
+                  static_assert((... && lib::is_rref_v<decltype(tail_ifs)>));
+                  return match_invoke(std::forward<F>(f),
+                                      std::move(head_ifs)...,
+                                      std::move(tail_ifs)...);
                 },
                 std::index_sequence<Is...>{});
           });
@@ -762,18 +765,22 @@ namespace mpark::patterns {
 
     struct Deduce;
 
-    // Returns `true` iif the elements at indices `Is...` in the given
-    // tuple-like argument all compare equal to the element at index `I`.
-    template <typename TupleLike, std::size_t I, std::size_t... Is>
-    bool equals(const TupleLike &tuple_like, std::index_sequence<I, Is...>) {
-      return (... && (std::get<I>(tuple_like) == std::get<Is>(tuple_like)));
+    // Returns `true` iif the elements at indices `Js...` in the given
+    // tuple-like argument all compare equal to the element at index `J`.
+    template <std::size_t... Is, typename... Ts,
+              std::size_t J, std::size_t... Js>
+    bool equals(std::tuple<indexed_forwarder<Is, Ts> &&...> &&ifs,
+                std::index_sequence<J, Js...>) {
+      return (... && (std::get<J>(std::move(ifs)).forward() ==
+                      std::get<Js>(std::move(ifs)).forward()));
     }
 
     // Returns `true` iif the elements that belong to each group compare
     // equal amongst themselves.
-    template <typename TupleLike, typename... GroupedIndices>
-    bool equals(const TupleLike &tuple_like, lib::list<GroupedIndices...>) {
-      return (... && equals(tuple_like, GroupedIndices{}));
+    template <std::size_t... Is, typename... Ts, typename... GroupedIndices>
+    bool equals(std::tuple<indexed_forwarder<Is, Ts> &&...> &&ifs,
+                lib::list<GroupedIndices...>) {
+      return (... && equals(std::move(ifs), GroupedIndices{}));
     }
 
     template <typename Head, typename... Tail>
@@ -863,11 +870,11 @@ namespace mpark::patterns {
     std::index_sequence<front_v<GroupedIndices>...> fronts(
         lib::list<GroupedIndices...>);
 
-    inline constexpr Pred guard_fn = [](std::size_t) { return true; };
+    inline constexpr Pred lazy_expr_fn = [](std::size_t) { return true; };
 
     template <typename... Ts>
-    using guard_indices_t =
-        decltype(fronts(grouped_indices_t<guard_fn, Ts...>{}));
+    using lazy_expr_indices_t =
+        decltype(fronts(grouped_indices_t<lazy_expr_fn, Ts...>{}));
 
     // Get the indices of the arguments to be passed to the final lambda.
     //
@@ -897,51 +904,74 @@ namespace mpark::patterns {
 
     template <typename Pattern, typename Rhs>
     struct Case {
-      Rhs &&rhs() && noexcept { return std::forward<Rhs>(rhs_); }
+      auto &&rhs() && noexcept { return std::forward<Rhs>(rhs_); }
 
       Pattern pattern;
-      Rhs &&rhs_;
+      Rhs rhs_;
     };
 
     template <bool Guarded, typename...>
     struct Pattern;
 
-    template <typename F, typename... Patterns>
-    struct Pattern<true, F, Patterns...> {
-      static constexpr bool guarded = true;
-      static constexpr std::size_t size = sizeof...(Patterns);
+    template <bool Guarded, typename... Ts>
+    struct PatternBase {
+      using type = Pattern<Guarded, Ts...>;
+
+      static constexpr bool guarded = Guarded;
 
       template <typename Rhs>
       auto operator=(Rhs &&rhs) && noexcept {
-        return Case<Pattern, Rhs>{std::move(*this), std::forward<Rhs>(rhs)};
+        if constexpr (is_identifier_v<std::decay_t<decltype(rhs)>>) {
+          auto lazy_expr = make_lazy_expr(
+              [](auto &&arg_) -> decltype(auto) {
+                return std::forward<decltype(arg_)>(arg_);
+              },
+              std::forward<Rhs>(rhs));
+          return Case<type, decltype(lazy_expr)>{static_cast<type &&>(*this),
+                                                 std::move(lazy_expr)};
+        } else {
+          return Case<type, Rhs &&>{static_cast<type &&>(*this),
+                                    std::forward<Rhs>(rhs)};
+        }
       }
+    };
 
-      Guard<F> guard;
+    template <typename Guard, typename... Patterns>
+    struct Pattern<true, Guard, Patterns...>
+        : PatternBase<true, Guard, Patterns...> {
+      static constexpr std::size_t size = sizeof...(Patterns);
+
+      using super = PatternBase<true, Guard, Patterns...>;
+      using super::operator=;
+
+      auto &&guard() && noexcept { return std::forward<Guard>(guard_); }
+
       Ds<Patterns...> patterns;
+      Guard guard_;
     };
 
     template <typename... Patterns>
-    struct Pattern<false, Patterns...> {
-      static constexpr bool guarded = false;
+    struct Pattern<false, Patterns...> : PatternBase<false, Patterns...> {
       static constexpr std::size_t size = sizeof...(Patterns);
 
-      template <typename Rhs>
-      auto operator=(Rhs &&rhs) && noexcept {
-        return Case<Pattern, Rhs>{std::move(*this), std::forward<Rhs>(rhs)};
-      }
+      using super = PatternBase<false, Patterns...>;
+      using super::operator=;
 
-      template <typename Arg,
-                std::enable_if_t<(is_identifier_v<std::decay_t<Arg>> ||
-                                  detail::is_guard_v<std::decay_t<Arg>>),
-                                 int> = 0>
+      template <typename Arg>
       auto when(Arg &&arg) && noexcept {
-        auto guard = detail::make_guard(
-            [](auto &&arg_) -> bool {
-              return std::forward<decltype(arg_)>(arg_);
-            },
-            std::forward<Arg>(arg));
-        return Pattern<true, decltype(guard), Patterns...>{{std::move(guard)},
-                                                           std::move(patterns)};
+        if constexpr (is_identifier_v<std::decay_t<Arg>>) {
+          auto lazy_expr = make_lazy_expr(
+              [](auto &&arg_) {
+                bool result = std::forward<decltype(arg_)>(arg_);
+                return result;
+              },
+              std::forward<Arg>(arg));
+          return Pattern<true, decltype(lazy_expr), Patterns...>{
+              {}, std::move(this->patterns), std::move(lazy_expr)};
+        } else {
+          return Pattern<true, Arg &&, Patterns...>{
+              {}, std::move(this->patterns), std::forward<Arg>(arg)};
+        }
       }
 
       Ds<Patterns...> patterns;
@@ -950,45 +980,66 @@ namespace mpark::patterns {
     template <typename R, typename... Values>
     struct Match {
       public:
-      template <typename Pattern, typename F, typename... Cases>
-      decltype(auto) operator()(Case<Pattern, F> &&case_,
+      template <typename Pattern, typename Rhs, typename... Cases>
+      decltype(auto) operator()(Case<Pattern, Rhs> &&case_,
                                 Cases &&... cases) && {
         auto result = [&] {
           auto result = try_match(
               std::move(case_).pattern.patterns,
               std::move(values),
-              [&](auto &&... ifs) {
+              [&](auto &&... ifs_) {
                 // The intermediate function that performs the adjustments for
                 // placeholder-related functionality and ultimately calls `f`
                 // with the final arguments.
-                using EqualsIndices =
-                    equals_indices_t<std::decay_t<decltype(ifs)>...>;
-                using ArgsIndices =
-                    args_indices_t<std::decay_t<decltype(ifs)>...>;
-                auto args_tuple =
-                    std::forward_as_tuple([](auto &&if_) -> auto && {
-                      static_assert(
-                          is_indexed_forwarder_v<std::decay_t<decltype(if_)>>);
-                      static_assert(std::is_rvalue_reference_v<decltype(if_)>);
-                      static_assert(std::is_reference_v<decltype(
-                                        std::move(if_).forward())>);
-                      return std::move(if_).forward();
-                    }(std::forward<decltype(ifs)>(ifs))...);
+                static_assert((... && lib::is_rref_v<decltype(ifs_)>));
+                auto ifs = std::forward_as_tuple(std::move(ifs_)...);
+
+                auto invoke = [&](auto invoke_, auto &&f) {
+                  if constexpr (is_lazy_expr_v<std::decay_t<decltype(f)>>) {
+                    return lib::apply(
+                        [&](auto &&... ifs_) -> decltype(auto) {
+                          // We already checked for rvalue-reference above.
+                          return invoke_(
+                              std::forward<decltype(f)>(f).lambda,
+                              std::forward_as_tuple(std::move(ifs_)...));
+                        },
+                        std::move(ifs),
+                        lazy_expr_indices_t<std::decay_t<decltype(ifs_)>...>{});
+                  } else {
+                    return lib::apply(
+                        [&](auto &&... ifs_) -> decltype(auto) {
+                          // We already checked for rvalue-reference above.
+                          return invoke_(std::forward<decltype(f)>(f),
+                                         std::move(ifs_).forward()...);
+                        },
+                        std::move(ifs),
+                        args_indices_t<std::decay_t<decltype(ifs_)>...>{});
+                  }
+                };
+
                 auto guard = [&] {
                   if constexpr (Pattern::guarded) {
-                    return lib::apply(
-                        std::move(case_).pattern.guard.f,
-                        std::forward_as_tuple(
-                            std::forward<decltype(ifs)>(ifs)...),
-                        guard_indices_t<std::decay_t<decltype(ifs)>...>{});
+                    bool result = invoke(
+                        [](auto &&... args) -> decltype(auto) {
+                          return std::invoke(
+                              std::forward<decltype(args)>(args)...);
+                        },
+                        std::move(case_).pattern.guard());
+                    return result;
                   } else {
                     return true;
                   }
                 };
-                return equals(args_tuple, EqualsIndices{}) && guard()
-                           ? match_apply(std::move(case_).rhs(),
-                                         std::move(args_tuple),
-                                         ArgsIndices{})
+
+                using EqualsIndices =
+                    equals_indices_t<std::decay_t<decltype(ifs_)>...>;
+                return equals(std::move(ifs), EqualsIndices{}) && guard()
+                           ? invoke(
+                                 [](auto &&... args) -> decltype(auto) {
+                                   return match_invoke(
+                                       std::forward<decltype(args)>(args)...);
+                                 },
+                                 std::move(case_).rhs())
                            : no_match;
               });
 
@@ -1002,7 +1053,7 @@ namespace mpark::patterns {
           if constexpr (std::is_same_v<R, Deduce>) {
             return result;
           } else if constexpr (std::is_void_v<R>) {
-            return match_result<void>(void_{});
+            return match_result<void>(std::move(result));
           } else if constexpr (std::is_convertible_v<typename Result::type,
                                                      R>) {
             return match_result<R>(
@@ -1030,7 +1081,7 @@ namespace mpark::patterns {
 
   template <typename... Patterns>
   auto pattern(const Patterns &... patterns) noexcept {
-    return detail::Pattern<false, Patterns...>{ds(patterns...)};
+    return detail::Pattern<false, Patterns...>{{}, ds(patterns...)};
   }
 
   template <typename R = detail::Deduce, typename... Values>

@@ -110,6 +110,9 @@ namespace mpark::patterns::lib {
   template <typename... Ts>
   inline constexpr bool false_v = false;
 
+  template <typename T>
+  inline constexpr bool is_rref_v = std::is_rvalue_reference_v<T>;
+
   template <typename... Ts>
   struct list {};
 
