@@ -121,7 +121,7 @@ using P = std::pair<int, int>;
 P p = {101, 202};
 
 using namespace mpark::patterns;
-match(x)(pattern(arg(ds(101, _))) = [](P& p) { std::cout << "pair!\n"; },
+match(x)(pattern(arg(ds(101, _))) = [](P &p) { std::cout << "pair!\n"; },
          //      ^^^ pass the pair!
          pattern(_) = [] { std::cout << "not a pair\n"; });
 // prints: "pair!"
@@ -396,7 +396,7 @@ Given a value `x`, The following code must be valid.
 
 ```
 using std::visit;
-visit([](auto&&) {}, x);`
+visit([](auto &&) {}, x);`
 ```
 
 #### Syntax
@@ -410,9 +410,8 @@ using str = std::string;
 std::variant<int, str> v = "hello world!";
 
 struct Visitor {
-  void operator()(int n) const { std::cout << "int: " << n << '\n';
-}
-void operator()(const str &s) const { std::cout << "str: " << s << '\n'; }
+  void operator()(int n) const { std::cout << "int: " << n << '\n'; }
+  void operator()(const str &s) const { std::cout << "str: " << s << '\n'; }
 };
 
 using namespace mpark::patterns;
@@ -464,7 +463,7 @@ auto x = std::make_tuple(101, "hello", 1.1);
 
 using namespace mpark::patterns;
 match(x)(
-    pattern(ds(variadic(arg))) = [](const auto&... xs) {
+    pattern(ds(variadic(arg))) = [](const auto &... xs) {
       int dummy[] = { (std::cout << xs << ' ', 0)... };
       (void)dummy;
     });
@@ -505,7 +504,7 @@ auto y = std::make_tuple(101, "hello", 1.1);
 
 using namespace mpark::patterns;
 match(x, y)(
-    pattern(arg, ds(variadic(arg))) = [](const auto&... xs) {
+    pattern(arg, ds(variadic(arg))) = [](const auto &... xs) {
       int dummy[] = { (std::cout << xs << ' ', 0)... };
       (void)dummy;
     });
@@ -532,13 +531,13 @@ A _pattern guard_ must be the only statement in a handler.
 using namespace mpark::patterns;
 placeholder lhs, rhs;
 match(101, 202)(
-    pattern(lhs, rhs) = [](auto&& lhs, auto&& rhs) {
+    pattern(lhs, rhs) = [](auto &&lhs, auto &&rhs) {
       WHEN(lhs > rhs) { std::cout << "GT\n"; };
     },
-    pattern(lhs, rhs) = [](auto&& lhs, auto&& rhs) {
+    pattern(lhs, rhs) = [](auto &&lhs, auto &&rhs) {
       WHEN(lhs < rhs) { std::cout << "LT\n"; };
     },
-    pattern(lhs, rhs) = [](auto&& lhs, auto&& rhs) {
+    pattern(lhs, rhs) = [](auto &&lhs, auto &&rhs) {
       WHEN(lhs == rhs) { std::cout << "EQ\n"; };
     });
 // prints: "LT"
