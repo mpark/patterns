@@ -23,7 +23,7 @@ TEST(Identifier, Simple) {
       pattern(ds(x, y, x), some(y)) = [](auto &&, auto &&) { return 2; },
       pattern(_, _) = [] { return 3; });
 
-  EXPECT_EQ(3, actual);
+  EXPECT_EQ(2, actual);
 }
 
 TEST(Identifier, Complex) {
