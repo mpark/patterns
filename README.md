@@ -117,11 +117,15 @@ int factorial(int n) {
 ```
 
 ```cpp
+using P = std::pair<int, int>;
+P p = {101, 202};
+
 using namespace mpark::patterns;
-match(202, 101)(pattern(101, arg) = [](auto) { /* ... */ },
-                //           ^^^ arg
-                pattern(arg, arg) = [](auto, auto) { /* OK. */ });
-                //      ^^^  ^^^ arg
+match(x)(
+    pattern(arg(ds(101, _))) = [](P& p) { std::cout << "pair!\n"; },
+    //      ^^^ pass the pair!
+    pattern(_) = [] { std::cout << "not a pair\n"; });
+// prints: "pair!"
 ```
 
 ### Wildcard Pattern
