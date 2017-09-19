@@ -253,9 +253,9 @@ For aggregate types (3), the current implementation only supports types that
 contain upto 16 non-static data members.
 
 __NOTE__: These requirements are very similar to the requirements for
-          [C++17 Structured Bindings][structured-bindings].
+          [C++17 Structured Binding][structured-binding].
 
-[structured-bindings]: http://en.cppreference.com/w/cpp/language/declarations#Structured_binding_declaration
+[structured-binding]: http://en.cppreference.com/w/cpp/language/structured_binding
 
 #### Syntax
 
@@ -266,7 +266,7 @@ __NOTE__: These requirements are very similar to the requirements for
 ```cpp
 auto t = std::make_tuple(101, "hello", 1.1);
 
-// C++17 Structured Bindings:
+// C++17 Structured Binding:
 const auto & [x, y, z] = t;
 // ...
 
