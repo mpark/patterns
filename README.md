@@ -517,7 +517,7 @@ While pattern matching is very useful to match values against patterns,
 it mainly focuses on equality comparisons. Pattern guards are used to
 test whether the bound values satisfy some predicate.
 
-### `when` Clause
+### `when`
 
 A `when` clause takes a lazy expression, and invokes the handler only
 if the expression evaluates to `true`. A lazy expression is an expression
@@ -546,7 +546,7 @@ match(101, 202)(
 // prints: "LT"
 ```
 
-## `let` Statements
+## Pattern Statements
 
 ### `if_let`
 
