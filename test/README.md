@@ -17,8 +17,8 @@
 [release]: https://github.com/mpark/patterns/releases/latest
 [travis]: https://travis-ci.org/mpark/patterns
 [license]: https://github.com/mpark/patterns/blob/master/LICENSE.md
-[godbolt]: https://godbolt.org/g/QXqY1o
-[wandbox]: https://wandbox.org/permlink/xAgD8i8R43Ge6k9I
+[godbolt]: https://godbolt.org/g/b7WTDt
+[wandbox]: https://wandbox.org/permlink/bm5oBKAuHoSucEYG
 
 ## Test
 
