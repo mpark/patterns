@@ -789,7 +789,9 @@ namespace mpark::patterns {
     }
 
     template <std::size_t P, std::size_t I>
-    lib::list<lib::indexed_type<P, std::index_sequence<I>>> insert(lib::list<>);
+    lib::list<lib::indexed_type<P, std::index_sequence<I>>> insert(lib::list<>) {
+      return {};
+    }
 
     template <std::size_t P, std::size_t I,
               std::size_t Q, std::size_t... Is, typename... Tail>
