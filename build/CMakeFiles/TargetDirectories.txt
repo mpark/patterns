@@ -1,0 +1,6 @@
+/home/thomas/tmp/patterns/build/CMakeFiles/install/strip.dir
+/home/thomas/tmp/patterns/build/CMakeFiles/edit_cache.dir
+/home/thomas/tmp/patterns/build/CMakeFiles/list_install_components.dir
+/home/thomas/tmp/patterns/build/CMakeFiles/install/local.dir
+/home/thomas/tmp/patterns/build/CMakeFiles/rebuild_cache.dir
+/home/thomas/tmp/patterns/build/CMakeFiles/install.dir

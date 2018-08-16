@@ -11,6 +11,7 @@ project(MPark.Patterns VERSION 0.1.0 LANGUAGES CXX)
 
 # Option.
 option(MPARK_PATTERNS_INCLUDE_TESTS "Build tests." OFF)
+option(MPARK_PATTERNS_INCLUDE_EXAMPLES "Build examples." ON)
 
 # Target.
 add_library(mpark_patterns INTERFACE)
@@ -55,4 +56,8 @@ install(
 if(MPARK_PATTERNS_INCLUDE_TESTS)
   enable_testing()
   add_subdirectory(test)
+endif()
+
+if(MPARK_PATTERNS_INCLUDE_EXAMPLES)
+  add_subdirectory(examples)
 endif()

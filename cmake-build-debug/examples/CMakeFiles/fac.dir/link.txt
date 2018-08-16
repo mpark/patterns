@@ -1,0 +1,1 @@
+/usr/bin/c++  -g   CMakeFiles/fac.dir/fibonacci.cpp.o  -o fac 
