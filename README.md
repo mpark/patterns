@@ -667,3 +667,7 @@ Distributed under the [Boost Software License, Version 1.0](LICENSE.md).
 
   - [solodon4/Mach7](https://github.com/solodon4/Mach7)
   - [jbandela/simple_match](https://github.com/jbandela/simple_match/)
+  * [N3449: Open and Efficient Type Switch for C++](https://wg21.link/N3449)
+  * [P0144: Structured bindings](https://wg21.link/P0144)
+  - [P1260: Pattern Matching](https://wg21.link/P1260)
+  - [P1308: Pattern Matching](https://wg21.link/P1308)
