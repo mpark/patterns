@@ -671,3 +671,4 @@ Distributed under the [Boost Software License, Version 1.0](LICENSE.md).
   * [P0144: Structured bindings](https://wg21.link/P0144)
   - [P1260: Pattern Matching](https://wg21.link/P1260)
   - [P1308: Pattern Matching](https://wg21.link/P1308)
+  - [P1371: Pattern Matching](https://wg21.link/P1371)
