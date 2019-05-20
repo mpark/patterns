@@ -996,52 +996,30 @@ namespace mpark::patterns {
                 static_assert((... && lib::is_rref_v<decltype(ifs_)>));
                 auto ifs = std::forward_as_tuple(std::move(ifs_)...);
 
-                auto invoke = [&](auto invoke_, auto &&f) {
-                  if constexpr (is_lazy_expr_v<std::decay_t<decltype(f)>>) {
-                    return lib::apply(
+                bool guard = true;
+                if constexpr (decltype(std::move(case_).pattern)::guarded) {
+                  guard = lib::apply(
                         [&](auto &&... ifs_) -> decltype(auto) {
                           // We already checked for rvalue-reference above.
-                          return invoke_(
-                              std::forward<decltype(f)>(f).lambda,
+                          return std::invoke(
+                              std::move(case_).pattern.guard().lambda,
                               std::forward_as_tuple(std::move(ifs_)...));
                         },
                         std::move(ifs),
                         lazy_expr_indices_t<std::decay_t<decltype(ifs_)>...>{});
-                  } else {
-                    return lib::apply(
-                        [&](auto &&... ifs_) -> decltype(auto) {
-                          // We already checked for rvalue-reference above.
-                          return invoke_(std::forward<decltype(f)>(f),
-                                         std::move(ifs_).forward()...);
-                        },
-                        std::move(ifs),
-                        args_indices_t<std::decay_t<decltype(ifs_)>...>{});
-                  }
-                };
-
-                auto guard = [&] {
-                  if constexpr (Pattern::guarded) {
-                    bool result = invoke(
-                        [](auto &&... args) -> decltype(auto) {
-                          return std::invoke(
-                              std::forward<decltype(args)>(args)...);
-                        },
-                        std::move(case_).pattern.guard());
-                    return result;
-                  } else {
-                    return true;
-                  }
-                };
+                }
 
                 using EqualsIndices =
                     equals_indices_t<std::decay_t<decltype(ifs_)>...>;
-                return equals(std::move(ifs), EqualsIndices{}) && guard()
-                           ? invoke(
-                                 [](auto &&... args) -> decltype(auto) {
-                                   return match_invoke(
-                                       std::forward<decltype(args)>(args)...);
+                return equals(std::move(ifs), EqualsIndices{}) && guard
+                           ? lib::apply(
+                                 [&](auto &&... ifs_) -> decltype(auto) {
+                                   // We already checked for rvalue-reference above.
+                                   return match_invoke(std::move(case_).rhs(),
+                                                       std::move(ifs_).forward()...);
                                  },
-                                 std::move(case_).rhs())
+                                 std::move(ifs),
+                                 args_indices_t<std::decay_t<decltype(ifs_)>...>{})
                            : no_match;
               });
 
