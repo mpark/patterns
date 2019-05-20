@@ -6,7 +6,6 @@ branches:
   only:
     - master
     - dev
-    - gcc81
 
 git:
   depth: 1
