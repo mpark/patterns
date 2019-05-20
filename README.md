@@ -644,10 +644,13 @@ for_let (pattern(ds(0, arg)) = pairs) = [](auto x) {
 This library requires a standard conformant __C++17__ compiler.
 The following compilers are continously tested:
 
-| Compiler                               | Operating System                            | Version String                                                                          |
-|----------------------------------------|---------------------------------------------|-----------------------------------------------------------------------------------------|
-| GCC 7.2.0                              | Ubuntu 14.04.5 LTS                          | g++-7 (Ubuntu 7.2.0-1ubuntu1~14.04) 7.2.0                                               |
-| Clang 5.0.0                            | Ubuntu 14.04.5 LTS                          | clang version 5.0.0-svn312333-1~exp1 (branches/release_50)                              |
+| Compiler    | Operating System   | Version String                                                               |
+|-------------|--------------------|------------------------------------------------------------------------------|
+| GCC 7.4.0   | Ubuntu 16.04.6 LTS | g++-7 (Ubuntu 7.4.0-1ubuntu1~16.04~ppa1) 7.4.0                               |
+| GCC 8.1.0   | Ubuntu 16.04.6 LTS | g++-8 (Ubuntu 8.1.0-5ubuntu1~16.04) 8.1.0                                    |
+| Clang 5.0.0 | Ubuntu 16.04.6 LTS | clang version 5.0.0-3~16.04.1 (tags/RELEASE_500/final)                       |
+| Clang 6.0.0 | Ubuntu 16.04.6 LTS | clang version 6.0.0-1ubuntu2~16.04.1 (tags/RELEASE_600/final)                |
+| Clang 7.1.0 | Ubuntu 16.04.6 LTS | clang version 7.1.0-svn353565-1~exp1~20190408084827.60 (branches/release_70) |
 
 ## CMake Variables
 
