@@ -216,7 +216,7 @@ is_same(101, 202);  // prints: "diff"
 ```
 
 ```cpp
-std::tuple<int, int, int> t = {101, 202};
+std::tuple<int, int> t = {101, 202};
 std::optional<int> o = 101;
 
 using namespace mpark::patterns;
