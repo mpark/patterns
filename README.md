@@ -121,7 +121,7 @@ using P = std::pair<int, int>;
 P p = {101, 202};
 
 using namespace mpark::patterns;
-match(x)(pattern(arg(ds(101, _))) = [](P &p) { std::cout << "pair!\n"; },
+match(p)(pattern(arg(ds(101, _))) = [](P &p) { std::cout << "pair!\n"; },
          //      ^^^ pass the pair!
          pattern(_) = [] { std::cout << "not a pair\n"; });
 // prints: "pair!"
