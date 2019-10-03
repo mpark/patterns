@@ -1,6 +1,8 @@
 # MPark.Patterns
 
-> Pattern Matching in __C++__
+> This is an experimental library that has evolved to [P1371], being proposed for C++23.
+
+[P1371]: https://wg21.link/p1371
 
 [![release][badge.release]][release]
 [![travis][badge.travis]][travis]
