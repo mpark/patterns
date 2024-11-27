@@ -1,8 +1,8 @@
 # MPark.Patterns
 
-> This is an experimental library that has evolved to [P1371], being proposed for C++23.
+> This is an experimental library that has evolved to [P2688], being proposed for C++26.
 
-[P1371]: https://wg21.link/p1371
+[P2688]: https://wg21.link/p2688
 
 [![release][badge.release]][release]
 [![travis][badge.travis]][travis]
@@ -677,3 +677,4 @@ Distributed under the [Boost Software License, Version 1.0](LICENSE.md).
   - [P1260: Pattern Matching](https://wg21.link/P1260)
   - [P1308: Pattern Matching](https://wg21.link/P1308)
   - [P1371: Pattern Matching](https://wg21.link/P1371)
+  - [P2392: Pattern Matching using `is` and `as`](https://wg21.link/P2392)
